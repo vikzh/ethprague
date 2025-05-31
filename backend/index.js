@@ -1,12 +1,12 @@
 import express from 'express';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { ethers } from 'ethers';
+import {fileURLToPath} from 'url';
+import {ethers} from 'ethers';
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
 
-import { TonClient } from "@ton/ton";
-import { Address, beginCell } from "@ton/core";
+import {TonClient} from "@ton/ton";
+import {Address, beginCell} from "@ton/core";
 
 dotenv.config();
 
@@ -256,11 +256,11 @@ app.get('/ton-escrow-address', async (req, res) => {
 
 app.get('/ton-escrow', async (req, res) => {
   const { address, orderId } = req.query;
-
+  console.log(`Calculate address: ${address}, orderId: ${orderId}`);
   try {
-    const calculatedAddress = await calculateAddress(address, orderId);
-
-    const contractAddress = calculatedAddress;
+    console.log(`Calculate address: ${address}, orderId: ${orderId}`);
+    const contractAddress = await calculateAddress(address, orderId);
+    console.log('arstarstarstart',contractAddress);
 
     const client = new TonClient({
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
@@ -268,13 +268,13 @@ app.get('/ton-escrow', async (req, res) => {
 
     // Call get method
     const result = await client.runMethod(
-      Address.parseFriendly(contractAddress).address,
+            contractAddress,
       "get_escrow_data"
     );
 
     const stack = result.stack;
 
-    const orderId = stack.readBigNumber();          // uint64 / uint128
+    const orderIdd = stack.readBigNumber();          // uint64 / uint128
     const fromAddress = stack.readAddress();        // address
     const fromAmount = stack.readBigNumber();       // uint64 / uint128
     const toNetwork = stack.readNumber();           // int or enum
@@ -284,7 +284,7 @@ app.get('/ton-escrow', async (req, res) => {
     // const resolverAddr = stack.readAddress();       // address
 
     res.json({
-      order_id: orderId.toString(),
+      order_id: orderIdd.toString(),
       from_address: fromAddress.toString(),
       from_amount: fromAmount.toString(),
       to_network: toNetwork,
