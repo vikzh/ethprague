@@ -1,0 +1,22 @@
+[
+  {
+    "id": 2,
+    "content": "message after switching to json file 2",
+    "timestamp": "2025-05-31T17:39:38.138Z"
+  },
+  {
+    "id": 3,
+    "content": "message after switching to json file 3",
+    "timestamp": "2025-05-31T17:39:40.356Z"
+  },
+  {
+    "id": 4,
+    "content": "message after switching to json file",
+    "timestamp": "2025-05-31T17:40:47.891Z"
+  },
+  {
+    "id": 5,
+    "content": "message after switching to json file",
+    "timestamp": "2025-05-31T17:41:16.403Z"
+  }
+]
