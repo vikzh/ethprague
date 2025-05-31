@@ -64,23 +64,66 @@ Total ETH Required: 0.0003 ETH # 99.997% cheaper!
 npx hardhat run scripts/deploy.ts --network sepolia
 ```
 
-### 2. Create Ultra-Cheap ERC20 Atomic Swap
+### 2. 🌐 **MAKER Creates Source Escrow** (Off-chain - TON blockchain)
 ```bash
-# Creates ultra-cost-effective ERC20 swap (uses only ~0.0003 ETH total!)
+# MAKER creates source escrow on TON blockchain with TON tokens + secret hash
+# This posts an "order": "I have X TON, want Y ERC20 tokens"
+# (This happens on TON blockchain - not covered by these scripts)
+```
+
+### 3. 🏦 **TAKER Responds with Destination Escrow**
+```bash
+# TAKER sees maker's order and creates destination escrow with requested ERC20 tokens
+# Uses only ~0.0003 ETH total for safety deposit + fees
 npx hardhat run scripts/interact.ts --network sepolia
 ```
 
-### 3. Complete the Swap
+### 4. 🔄 **Complete the Atomic Swap**
 ```bash
-# Withdraw tokens and reveal secret
-npx hardhat run scripts/interact_maker.ts --network sepolia
+# Step 1: MAKER withdraws ERC20 tokens and reveals secret
+npx hardhat run scripts/maker_withdraw.ts --network sepolia
+
+# Step 2: TAKER uses revealed secret to claim TON (on TON blockchain - off-chain)
+# Step 3: TAKER withdraws their ETH safety deposit (optional cleanup)
+npx hardhat run scripts/taker_withdraw.ts --network sepolia
 ```
 
-### 4. Check Status
+### 5. Check Status
 ```bash
 # View current state and timing
 npx hardhat run scripts/status.ts --network sepolia
 ```
+
+## 🔄 **Correct Atomic Swap Flow**
+
+### **Maker-Initiated TON ↔ ERC20 Atomic Swap**
+
+**Participants:**
+- **Maker**: Has TON, wants ERC20 tokens (INITIATES the swap)
+- **Taker**: Has ERC20 tokens, wants TON (RESPONDS to maker's offer)
+
+**✅ Actual Flow:**
+1. **🌐 MAKER creates source escrow** (TON blockchain) with TON tokens + secret hash
+   - Maker posts an "order": "I have X TON, want Y ERC20 tokens"
+   - Maker knows the secret, others only see the hash
+
+2. **👀 TAKER discovers the order** and decides to fulfill it
+   - Taker sees: "Maker offers X TON for Y ERC20 tokens"
+
+3. **🏦 TAKER creates destination escrow** (EVM) with requested ERC20 tokens
+   - Taker provides the ERC20 tokens maker wants
+   - Uses same secret hash from maker's source escrow
+
+4. **🎯 MAKER withdraws from destination escrow** using secret
+   - 🪙 **ERC20 tokens transfer to MAKER**
+   - 💰 **ETH safety deposit returns to TAKER**  
+   - 🔐 **Secret is revealed on EVM blockchain**
+
+5. **🔐 TAKER uses revealed secret** to claim TON from source escrow
+   - Taker sees the secret from maker's withdrawal transaction
+   - Taker claims TON from the original source escrow
+
+**✅ Result:** Maker gets ERC20 tokens, Taker gets TON - atomic swap complete!
 
 ## 📋 Real-World Token Examples
 
@@ -110,19 +153,82 @@ const immutables = {
 # Terminal 1: Start local node
 npx hardhat node
 
-# Terminal 2: Run complete flow
+# Terminal 2: Run complete atomic swap flow
 npx hardhat run scripts/deploy.ts --network localhost
-npx hardhat run scripts/interact.ts --network localhost
+
+# Step 1: MAKER creates source escrow (TON) - simulated off-chain
+# Step 2: TAKER responds with destination escrow (EVM)
+npx hardhat run scripts/interact.ts --network localhost        
+
 # Wait 1 minute (default testing period)
-npx hardhat run scripts/interact_maker.ts --network localhost
+# Step 3: MAKER withdraws ERC20 tokens (reveals secret)
+npx hardhat run scripts/maker_withdraw.ts --network localhost  
+
+# Step 4: TAKER uses secret to claim TON (TON) - simulated off-chain
+# Step 5: TAKER gets safety deposit back (cleanup)
+npx hardhat run scripts/taker_withdraw.ts --network localhost  
+```
+
+### Maker Withdrawal Testing
+```bash
+# Test maker withdrawal (withdraws ERC20 tokens using secret)
+npx hardhat run scripts/maker_withdraw.ts --network localhost
+
+# Specify maker by direct address (recommended for testnets)
+MAKER_ADDRESS=0x1234... npx hardhat run scripts/maker_withdraw.ts --network sepolia
+
+# Specify different maker account index (for local testing)
+MAKER_ACCOUNT_INDEX=2 npx hardhat run scripts/maker_withdraw.ts --network localhost
+
+# Features:
+# - MAKER withdraws ERC20 tokens from escrow (reveals secret)
+# - Dynamic maker selection via MAKER_ADDRESS or MAKER_ACCOUNT_INDEX
+# - Automatic timing verification for withdrawal period
+# - Complete balance tracking and verification
+# - Saves detailed withdrawal results to deployments/maker-withdrawal-result.json
+```
+
+### Taker Safety Deposit Withdrawal Testing
+```bash
+# Test taker safety deposit withdrawal (final cleanup step)
+npx hardhat run scripts/taker_withdraw.ts --network localhost
+
+# Specify taker by direct address (recommended for testnets)
+TAKER_ADDRESS=0x1234... npx hardhat run scripts/taker_withdraw.ts --network sepolia
+
+# Specify different taker account index (for local testing)
+TAKER_ACCOUNT_INDEX=1 npx hardhat run scripts/taker_withdraw.ts --network localhost
+
+# Features:
+# - TAKER withdraws their ETH safety deposit after atomic swap completion
+# - Can also handle cancellation scenarios (gets tokens + ETH back)
+# - Dynamic taker selection via TAKER_ADDRESS or TAKER_ACCOUNT_INDEX
+# - Automatic detection of atomic swap completion status
+# - Saves detailed withdrawal results to deployments/taker-withdrawal-result.json
 ```
 
 ### Testnet Testing (Ultra-Cost-Effective)
 ```bash
 # Use ERC20 swaps to minimize ETH costs to almost nothing
 npx hardhat run scripts/deploy.ts --network sepolia
-npx hardhat run scripts/interact.ts --network sepolia  # Only ~0.0003 ETH needed!
-npx hardhat run scripts/interact_maker.ts --network sepolia
+
+# STEP 1: MAKER creates source escrow (TON blockchain) - off-chain step
+# MAKER posts order: "I have X TON, want Y ERC20 tokens"
+
+# STEP 2: TAKER responds with destination escrow using specific funded addresses
+TAKER_ADDRESS=0x1234... MAKER_ADDRESS=0x5678... npx hardhat run scripts/interact.ts --network sepolia  # Only ~0.0003 ETH needed!
+
+# STEP 3: MAKER completes the swap by withdrawing ERC20 tokens (reveals secret)
+MAKER_ADDRESS=0x5678... npx hardhat run scripts/maker_withdraw.ts --network sepolia
+
+# STEP 4: TAKER uses revealed secret to claim TON (TON blockchain) - off-chain step
+# STEP 5: TAKER retrieves safety deposit (optional cleanup)
+TAKER_ADDRESS=0x1234... npx hardhat run scripts/taker_withdraw.ts --network sepolia
+
+# Environment Variables for Testnet Usage:
+# - TAKER_ADDRESS: Address with ETH + ERC20 tokens for taker role (responds to maker's order)
+# - MAKER_ADDRESS: Address with ETH balance for maker role (initiates and completes swap)
+# - Perfect for Sepolia, Goerli, or any testnet with funded accounts
 ```
 
 ## 🔧 Configuration Files

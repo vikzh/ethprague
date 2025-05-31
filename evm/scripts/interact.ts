@@ -1,7 +1,13 @@
 /**
- * 🪙 TON-EVM ERC20 Atomic Swap - Ultra-Cheap Escrow Creation Script
+ * 🪙 TON-EVM ERC20 Atomic Swap - Taker Response Script
  * 
- * This script creates ultra-cost-effective ERC20 token atomic swaps.
+ * This script allows a TAKER to respond to a MAKER's atomic swap offer.
+ * 
+ * 🔄 Correct Atomic Swap Flow:
+ * 1. ✅ MAKER creates source escrow (TON) with TON tokens + secret hash (MAKER INITIATES)
+ * 2. 🎯 TAKER creates destination escrow (EVM) with ERC20 tokens (THIS SCRIPT - TAKER RESPONDS)
+ * 3. 🎯 MAKER withdraws ERC20 tokens from destination escrow using secret (reveals secret)
+ * 4. 🔐 TAKER uses revealed secret to claim TON from source escrow
  * 
  * 💰 Cost Comparison:
  * - ETH Swap:        ~10.51 ETH total (10 ETH swap + 0.5 ETH safety + 0.01 ETH fee)
@@ -10,12 +16,19 @@
  * 
  * 🎯 What this script does:
  * 1. Reads deployment info from deployments/deployment-info.json
- * 2. Mints test tokens for the swap (free!)
- * 3. Creates ERC20 escrow requiring only 0.0003 ETH total
+ * 2. Mints test tokens for the swap (simulating taker having tokens)
+ * 3. Creates ERC20 destination escrow requiring only 0.0003 ETH total
  * 4. Saves escrow details to deployments/escrow-info.json for withdrawal script
  * 
  * 🚀 Usage:
  * npx hardhat run scripts/interact.ts --network sepolia
+ * TAKER_ADDRESS=0x1234... MAKER_ADDRESS=0x5678... npx hardhat run scripts/interact.ts --network sepolia
+ * 
+ * 🔧 Environment Variables:
+ * - TAKER_ADDRESS: Direct taker address (optional, defaults to account index 1)
+ * - MAKER_ADDRESS: Direct maker address (optional, defaults to account index 2)
+ * 
+ * 💡 For testnets like Sepolia, use environment variables to specify funded addresses
  * 
  * ✨ Ultra-affordable testing on any network - even mainnet!
  */
@@ -52,11 +65,46 @@ async function main() {
   const TEST_TOKEN_ADDRESS = deploymentInfo.contracts.testToken;
   const WITHDRAWAL_PERIOD = deploymentInfo.configuration.withdrawalPeriod;
 
-  const [deployer, user1, user2] = await ethers.getSigners();
+  // Account selection with environment variable support
+  const signers = await ethers.getSigners();
+  const deployer = signers[0];
+  
+  // Dynamic taker selection
+  let taker: any;
+  if (process.env.TAKER_ADDRESS) {
+    const takerAddress = process.env.TAKER_ADDRESS;
+    if (!ethers.isAddress(takerAddress)) {
+      throw new Error(`❌ Invalid TAKER_ADDRESS: ${takerAddress}`);
+    }
+    const matchingSigner = signers.find(s => s.address.toLowerCase() === takerAddress.toLowerCase());
+    if (!matchingSigner) {
+      throw new Error(`❌ TAKER_ADDRESS ${takerAddress} not found in available signers`);
+    }
+    taker = matchingSigner;
+  } else {
+    taker = signers[1]; // Default to user1
+  }
+  
+  // Dynamic maker selection
+  let maker: any;
+  if (process.env.MAKER_ADDRESS) {
+    const makerAddress = process.env.MAKER_ADDRESS;
+    if (!ethers.isAddress(makerAddress)) {
+      throw new Error(`❌ Invalid MAKER_ADDRESS: ${makerAddress}`);
+    }
+    const matchingSigner = signers.find(s => s.address.toLowerCase() === makerAddress.toLowerCase());
+    if (!matchingSigner) {
+      throw new Error(`❌ MAKER_ADDRESS ${makerAddress} not found in available signers`);
+    }
+    maker = matchingSigner;
+  } else {
+    maker = signers[2]; // Default to user2
+  }
+  
   console.log("👤 Testing with accounts:");
   console.log("   - Deployer:", deployer.address);
-  console.log("   - User 1 (Taker):", user1.address);
-  console.log("   - User 2 (Maker):", user2.address);
+  console.log("   - Taker:", taker.address, process.env.TAKER_ADDRESS ? "(from TAKER_ADDRESS)" : "(default)");
+  console.log("   - Maker:", maker.address, process.env.MAKER_ADDRESS ? "(from MAKER_ADDRESS)" : "(default)");
 
   // Connect to deployed contracts
   const factory = await ethers.getContractAt("EscrowFactory", FACTORY_ADDRESS) as EscrowFactory;
@@ -110,8 +158,8 @@ async function main() {
     return {
       orderHash: ethers.keccak256(ethers.toUtf8Bytes("sepolia-erc20-test-order-1")),
       hashlock: HASHLOCK,
-      maker: makeAddressType(user2.address),
-      taker: makeAddressType(user1.address),
+      maker: makeAddressType(maker.address),
+      taker: makeAddressType(taker.address),
       token: makeAddressType(TEST_TOKEN_ADDRESS), // ERC20 token instead of ETH
       amount: TOKEN_AMOUNT,
       safetyDeposit: SAFETY_DEPOSIT,
@@ -123,47 +171,51 @@ async function main() {
     // Test 1: Check balances
     console.log("\n💰 Step 1: Checking balances...");
     const deployerBalance = await ethers.provider.getBalance(deployer.address);
-    const user1Balance = await ethers.provider.getBalance(user1.address);
+    const takerBalance = await ethers.provider.getBalance(taker.address);
     const totalETHNeeded = SAFETY_DEPOSIT + CREATION_FEE;
     
     console.log("   - Deployer balance:", ethers.formatEther(deployerBalance), "ETH");
-    console.log("   - User1 balance:", ethers.formatEther(user1Balance), "ETH");
-    console.log("   - Total ETH needed:", ethers.formatEther(totalETHNeeded), "ETH");
+    console.log("   - Taker balance:", ethers.formatEther(takerBalance), "ETH");
+    console.log("   - Total ETH needed for taker:", ethers.formatEther(totalETHNeeded), "ETH");
 
-    if (deployerBalance < totalETHNeeded) {
-      throw new Error(`Insufficient ETH! Need ${ethers.formatEther(totalETHNeeded)} ETH, have ${ethers.formatEther(deployerBalance)} ETH`);
+    if (takerBalance < totalETHNeeded) {
+      throw new Error(`Taker has insufficient ETH! Need ${ethers.formatEther(totalETHNeeded)} ETH, have ${ethers.formatEther(takerBalance)} ETH`);
     }
 
     // Test 2: Setup tokens for ERC20 swap
     console.log("\n🪙 Step 2: Setting up ERC20 tokens...");
     
-    // Mint access tokens
-    await accessToken.mint(user1.address, ethers.parseEther("10"));
-    await accessToken.mint(deployer.address, ethers.parseEther("10"));
+    // Mint access tokens for both participants
+    await accessToken.mint(taker.address, ethers.parseEther("10"));
+    await accessToken.mint(maker.address, ethers.parseEther("10"));
     
-    // Mint test tokens for the swap
-    await testToken.mint(deployer.address, TOKEN_AMOUNT);
-    console.log("   ✅ Minted", ethers.formatEther(TOKEN_AMOUNT), "test tokens to deployer");
+    // IMPORTANT: Taker provides the ERC20 tokens in atomic swap
+    // Taker has ERC20 tokens and wants TON
+    await testToken.mint(taker.address, TOKEN_AMOUNT);
+    console.log("   ✅ Minted", ethers.formatEther(TOKEN_AMOUNT), "test tokens to TAKER");
     
-    // Approve factory to spend test tokens
-    await testToken.connect(deployer).approve(await factory.getAddress(), TOKEN_AMOUNT);
-    console.log("   ✅ Approved factory to spend test tokens");
+    // Taker approves factory to spend their test tokens
+    await testToken.connect(taker).approve(await factory.getAddress(), TOKEN_AMOUNT);
+    console.log("   ✅ TAKER approved factory to spend test tokens");
     
-    const user1AccessBalance = await accessToken.balanceOf(user1.address);
-    const deployerTokenBalance = await testToken.balanceOf(deployer.address);
-    console.log("   ✅ User1 access token balance:", ethers.formatEther(user1AccessBalance));
-    console.log("   ✅ Deployer test token balance:", ethers.formatEther(deployerTokenBalance));
+    const takerAccessBalance = await accessToken.balanceOf(taker.address);
+    const takerTokenBalance = await testToken.balanceOf(taker.address);
+    const makerAccessBalance = await accessToken.balanceOf(maker.address);
+    console.log("   ✅ Taker access token balance:", ethers.formatEther(takerAccessBalance));
+    console.log("   ✅ Taker test token balance:", ethers.formatEther(takerTokenBalance));
+    console.log("   ✅ Maker access token balance:", ethers.formatEther(makerAccessBalance));
 
-    // Test 3: Create escrow via factory (ERC20 swap)
-    console.log("\n🚀 Step 3: Creating ERC20 escrow via factory...");
+    // Test 3: Create escrow via factory (ERC20 swap) - TAKER CREATES IT
+    console.log("\n🚀 Step 3: TAKER creating ERC20 escrow via factory...");
     const immutables = createTestImmutables();
     const totalETHRequired = SAFETY_DEPOSIT + CREATION_FEE; // Only ETH for safety + fees
     
-    console.log("   - Token Amount:", ethers.formatEther(TOKEN_AMOUNT), "TEST");
-    console.log("   - ETH Required:", ethers.formatEther(totalETHRequired), "ETH");
-    console.log("   💡 Much cheaper than ETH swaps!");
+    console.log("   - Token Amount (provided by taker):", ethers.formatEther(TOKEN_AMOUNT), "TEST");
+    console.log("   - ETH Required (safety + fee):", ethers.formatEther(totalETHRequired), "ETH");
+    console.log("   💡 Taker provides tokens, maker will withdraw them!");
     
-    const tx = await factory.connect(deployer).createDstEscrow(immutables, {
+    // TAKER creates the destination escrow
+    const tx = await factory.connect(taker).createDstEscrow(immutables, {
       value: totalETHRequired
     });
     
@@ -213,8 +265,8 @@ async function main() {
       hashlock: HASHLOCK,
       participants: {
         deployer: deployer.address,
-        taker: user1.address,
-        maker: user2.address
+        taker: taker.address, // Taker created escrow and provided tokens
+        maker: maker.address  // Maker will withdraw tokens using secret
       },
       token: {
         address: TEST_TOKEN_ADDRESS,
@@ -245,7 +297,13 @@ async function main() {
         network: deploymentInfo.network,
         chainId: deploymentInfo.chainId,
         createdAt: new Date().toISOString(),
-        swapType: "ERC20"
+        swapType: "ERC20",
+        economicFlow: {
+          takerProvides: "ERC20 tokens + ETH safety deposit",
+          takerReceives: "TON (on TON blockchain)",
+          makerProvides: "TON (on TON blockchain)", 
+          makerReceives: "ERC20 tokens (from this escrow)"
+        }
       }
     };
 
@@ -277,26 +335,30 @@ async function main() {
     const predictedAddress = await factory.addressOfEscrowDst(nextImmutables);
     console.log("   🔮 Next predicted address:", predictedAddress);
 
-    console.log("\n🎉 ULTRA-CHEAP ERC20 INTERACTION TEST COMPLETE!");
-    console.log("================================================");
+    console.log("\n🎉 CORRECT ATOMIC SWAP ESCROW CREATION COMPLETE!");
+    console.log("=================================================");
     console.log("\n📋 Test Results:");
     console.log("   ✅ Factory connection successful");
-    console.log("   ✅ ERC20 escrow creation successful");
-    console.log("   ✅ Token and ETH funding verification successful");
+    console.log("   ✅ TAKER created ERC20 escrow successfully");
+    console.log("   ✅ TAKER provided ERC20 tokens + ETH safety deposit");
     console.log("   📍 Active escrow:", escrowAddress);
-    console.log("   🪙 Swap type: TON → TEST Token");
-    console.log("   💰 ETH cost:", ethers.formatEther(totalETHRequired), "ETH (ultra-low!)");
+    console.log("   🪙 Swap type: TAKER's ERC20 → MAKER's TON");
+    console.log("   💰 ETH cost for taker:", ethers.formatEther(totalETHRequired), "ETH");
     console.log("   🎯 Savings: 99.997% cheaper than ETH swaps!");
     
     console.log("\n💾 Escrow info saved to:", escrowPath);
-    console.log("📄 Withdrawal script will automatically read from this file");
+    console.log("📄 Maker withdrawal script will automatically read from this file");
     
-    console.log("\n🎯 Next Steps:");
+    console.log("\n🎯 Correct Atomic Swap Flow:");
+    console.log(`   1. ✅ MAKER creates source escrow (TON) with TON tokens + secret hash (MAKER INITIATES)`);
+    console.log(`   2. 🎯 TAKER creates destination escrow (EVM) with ERC20 tokens (THIS SCRIPT - TAKER RESPONDS)`);
+    console.log(`   3. 🎯 MAKER withdraws ERC20 tokens from destination escrow using secret (reveals secret)`);
+    console.log(`   4. 🔐 TAKER uses revealed secret to claim TON from source escrow`);
+    
+    console.log("\n🛠️ Next Actions:");
     console.log(`   1. Wait ${WITHDRAWAL_PERIOD / 60} minute(s) for withdrawal period`);
-    console.log("   2. Run withdrawal script (interact_maker.ts)");
-    console.log("   3. Verify atomic swap completion");
-    console.log("   4. Maker will receive TEST tokens, taker will receive ETH safety deposit");
-    console.log("   💡 Perfect for testing even on mainnet with these ultra-low costs!");
+    console.log("   2. Run maker withdrawal script to withdraw ERC20 tokens");
+    console.log("   3. Run taker safety deposit withdrawal");
 
     return escrowInfo;
 
