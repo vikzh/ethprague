@@ -82,6 +82,8 @@ defmodule BlockScoutWeb.Routers.WebRouter do
 
     resources("/withdrawals", WithdrawalController, only: [:index])
 
+    resources("/cross-chain-swaps", CrossChainSwapController, only: [:index, :show])
+
     get("/txs", TransactionController, :index)
 
     resources "/tx", TransactionController, only: [:show] do
