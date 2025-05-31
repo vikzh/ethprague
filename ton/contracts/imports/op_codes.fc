@@ -1,2 +1,5 @@
 
 const op::create_order = "create_order"c;
+const op::claim_order = "claim_order"c;
+const op::withdraw = "withdraw"c;
+const op::cancel = "cancel"c;

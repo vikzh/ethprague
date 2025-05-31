@@ -43,8 +43,8 @@ export class EscrowFactory implements Contract {
             orderId: number;
             fromAmount: bigint;
             toNetwork: number;
-            toAddress: number;
-            toAmount: bigint;
+            toAddress: number | bigint;
+            toAmount: number | bigint;
             hashKey: bigint;
         },
     ) {
@@ -62,5 +62,19 @@ export class EscrowFactory implements Contract {
                 .storeUint(opts.hashKey, 256)
                 .endCell(),
         });
+    }
+
+    async getOrderAddress(provider: ContractProvider, creator: Address, orderId: bigint) {
+        const result = await provider.get('get_order_address', [
+            {
+                type: 'slice',
+                cell: beginCell().storeAddress(creator).endCell(),
+            },
+            {
+                type: 'int',
+                value: orderId,
+            },
+        ]);
+        return result.stack.readAddress();
     }
 }

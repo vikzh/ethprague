@@ -1,4 +1,5 @@
 #include "stdlib.fc";
+#include "errors.fc";
 
 int workchain() asm "0 PUSHINT";
 
@@ -26,4 +27,13 @@ slice calculate_user_escrow_address(cell state_init) inline {
         .store_uint(cell_hash(state_init), 256)
         .end_cell()
         .begin_parse();
+}
+
+int is_resolvable?(slice addr) inline {
+    (int wc, _) = parse_std_addr(addr);
+    return wc == workchain();
+}
+
+() force_chain(slice addr) impure {
+    throw_unless(error::wrong_workchain, is_resolvable?(addr));
 }
