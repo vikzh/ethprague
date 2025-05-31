@@ -3,24 +3,21 @@
 pragma solidity ^0.8.20;
 
 /**
- * @title Library to compute the hash of the proxy bytecode.
+ * @title Library for computing proxy bytecode hash.
  * @custom:security-contact security@1inch.io
  */
 library ProxyHashLib {
     /**
-     * @notice Returns the hash of the proxy bytecode concatenated with the implementation address.
-     * @param implementation The address of the contract to clone.
-     * @return bytecodeHash The hash of the resulting bytecode.
+     * @notice Computes the bytecode hash of a minimal proxy contract.
+     * @param implementation The address of the implementation contract.
+     * @return The keccak256 hash of the proxy bytecode.
      */
-    function computeProxyBytecodeHash(address implementation) internal pure returns (bytes32 bytecodeHash) {
-        assembly ("memory-safe") {
-            // Stores the bytecode after address
-            mstore(0x20, 0x5af43d82803e903d91602b57fd5bf3)
-            // implementation address
-            mstore(0x11, implementation)
-            // Packs the first 3 bytes of the `implementation` address with the bytecode before the address.
-            mstore(0x00, or(shr(0x88, implementation), 0x3d602d80600a3d3981f3363d3d373d3d3d363d73000000))
-            bytecodeHash := keccak256(0x09, 0x37)
-        }
+    function computeProxyBytecodeHash(address implementation) internal pure returns (bytes32) {
+        bytes memory bytecode = abi.encodePacked(
+            hex"3d602d80600a3d3981f3363d3d373d3d3d363d73",
+            implementation,
+            hex"5af43d82803e903d91602b57fd5bf3"
+        );
+        return keccak256(bytecode);
     }
 }

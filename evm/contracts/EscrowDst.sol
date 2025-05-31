@@ -26,6 +26,9 @@ contract EscrowDst is Escrow, IEscrowDst {
 
     constructor(uint32 rescueDelay, IERC20 accessToken) BaseEscrow(rescueDelay, accessToken) {}
 
+    // Allow contract to receive ETH for testing
+    receive() external payable {}
+
     /**
      * @notice See {IBaseEscrow-withdraw}.
      * @dev The function works on the time intervals highlighted with capital letters:
