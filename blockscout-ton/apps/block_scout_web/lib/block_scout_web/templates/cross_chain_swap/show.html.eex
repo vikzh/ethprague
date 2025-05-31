@@ -1,0 +1,276 @@
+<section class="container" data-page="cross-chain-swap-show">
+  <%= render BlockScoutWeb.Advertisement.TextAdView, "index.html", conn: @conn %>
+
+  <div class="row">
+    <div class="col-md-12">
+      <!-- Breadcrumb -->
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+          <li class="breadcrumb-item">
+            <%= link gettext("Cross-Chain Swaps"), to: cross_chain_swap_path(@conn, :index), class: "text-muted" %>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            <%= String.slice(@swap.id, 0, 8) %>...
+          </li>
+        </ol>
+      </nav>
+
+      <!-- Main card -->
+      <div class="card">
+        <div class="card-header">
+          <h1 class="card-title mb-0">
+            <%= gettext "Cross-Chain Swap Details" %>
+            <span class="badge <%= status_badge_class(@swap.status) %> ml-2">
+              <%= status_text(@swap.status) %>
+            </span>
+          </h1>
+        </div>
+        <div class="card-body">
+          <!-- Swap Overview -->
+          <div class="row mb-4">
+            <div class="col-md-6">
+              <h5><%= gettext "Swap Information" %></h5>
+              <table class="table table-sm table-borderless">
+                <tr>
+                  <td class="text-muted"><%= gettext "Swap ID:" %></td>
+                  <td class="font-monospace">
+                    <span data-clipboard-text="<%= @swap.id %>">
+                      <%= @swap.id %>
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary ml-2" data-clipboard-target="[data-clipboard-text='<%= @swap.id %>']">
+                      <i class="fas fa-copy"></i>
+                    </button>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted"><%= gettext "Status:" %></td>
+                  <td>
+                    <span class="badge <%= status_badge_class(@swap.status) %>">
+                      <%= status_text(@swap.status) %>
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted"><%= gettext "Chain Route:" %></td>
+                  <td>
+                    <span class="<%= chain_icon_class(@swap.source_chain_name) %>"></span>
+                    <%= @swap.source_chain_name %>
+                    <i class="fas fa-arrow-right mx-2"></i>
+                    <span class="<%= chain_icon_class(@swap.destination_chain_name) %>"></span>
+                    <%= @swap.destination_chain_name %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted"><%= gettext "Amount:" %></td>
+                  <td class="font-weight-bold">
+                    <%= format_amount_with_token(@swap.amount, @swap.token_symbol) %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted"><%= gettext "User Address:" %></td>
+                  <td class="font-monospace">
+                    <%= render BlockScoutWeb.AddressView,
+                      "_link.html",
+                      address: @swap.user_address,
+                      contract: false,
+                      use_custom_tooltip: false %>
+                  </td>
+                </tr>
+              </table>
+            </div>
+            <div class="col-md-6">
+              <h5><%= gettext "Transaction Details" %></h5>
+              <table class="table table-sm table-borderless">
+                <tr>
+                  <td class="text-muted"><%= gettext "Transaction Hash:" %></td>
+                  <td class="font-monospace">
+                    <span data-clipboard-text="<%= full_hash(@swap.transaction_hash) %>">
+                      <%= format_hash(@swap.transaction_hash) %>
+                    </span>
+                    <button class="btn btn-sm btn-outline-secondary ml-2" data-clipboard-target="[data-clipboard-text='<%= full_hash(@swap.transaction_hash) %>']">
+                      <i class="fas fa-copy"></i>
+                    </button>
+                  </td>
+                </tr>
+                <%= if has_settlement_tx?(@swap) do %>
+                  <tr>
+                    <td class="text-muted"><%= gettext "Settlement Hash:" %></td>
+                    <td class="font-monospace">
+                      <span data-clipboard-text="<%= full_hash(@swap.settlement_tx_hash) %>">
+                        <%= format_hash(@swap.settlement_tx_hash) %>
+                      </span>
+                      <button class="btn btn-sm btn-outline-secondary ml-2" data-clipboard-target="[data-clipboard-text='<%= full_hash(@swap.settlement_tx_hash) %>']">
+                        <i class="fas fa-copy"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <% end %>
+                <tr>
+                  <td class="text-muted"><%= gettext "Created:" %></td>
+                  <td>
+                    <%= format_datetime(@swap.inserted_at) %>
+                    <small class="text-muted">(<%= relative_time(@swap.inserted_at) %>)</small>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted"><%= gettext "Last Updated:" %></td>
+                  <td>
+                    <%= format_datetime(@swap.updated_at) %>
+                    <small class="text-muted">(<%= relative_time(@swap.updated_at) %>)</small>
+                  </td>
+                </tr>
+                <%= if @swap.retry_count > 0 do %>
+                  <tr>
+                    <td class="text-muted"><%= gettext "Retry Count:" %></td>
+                    <td><%= retry_count_text(@swap.retry_count) %></td>
+                  </tr>
+                <% end %>
+              </table>
+            </div>
+          </div>
+
+          <!-- Error Details (if any) -->
+          <%= if has_error?(@swap) do %>
+            <div class="alert alert-danger mt-4">
+              <h6 class="alert-heading">
+                <i class="fas fa-exclamation-triangle"></i>
+                <%= gettext "Error Details" %>
+              </h6>
+              <p class="mb-0 font-monospace"><%= @swap.error_message %></p>
+            </div>
+          <% end %>
+
+          <!-- Custom Metadata (if any) -->
+          <%= if @swap.custom_metadata && @swap.custom_metadata != %{} do %>
+            <div class="mt-4">
+              <h5><%= gettext "Additional Metadata" %></h5>
+              <div class="border rounded p-3 bg-light">
+                <pre class="mb-0"><%= Jason.encode!(@swap.custom_metadata, pretty: true) %></pre>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- Status Timeline -->
+          <div class="mt-4">
+            <h5><%= gettext "Status Timeline" %></h5>
+            <div class="timeline">
+              <!-- Created -->
+              <div class="timeline-item">
+                <div class="timeline-marker bg-primary"></div>
+                <div class="timeline-content">
+                  <h6 class="timeline-title"><%= gettext "Swap Created" %></h6>
+                  <p class="timeline-description text-muted">
+                    <%= format_datetime(@swap.inserted_at) %>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Current Status -->
+              <div class="timeline-item <%= if @swap.status == "pending", do: "active" %>">
+                <div class="timeline-marker <%= if @swap.status == "pending", do: "bg-warning", else: status_badge_class(@swap.status) |> String.replace("badge-", "bg-") %>"></div>
+                <div class="timeline-content">
+                  <h6 class="timeline-title">
+                    <%= case @swap.status do %>
+                      <% "pending" -> %><%= gettext "Processing" %>
+                      <% "settled" -> %><%= gettext "Successfully Settled" %>
+                      <% "failed" -> %><%= gettext "Failed" %>
+                      <% _ -> %><%= String.capitalize(@swap.status) %>
+                    <% end %>
+                  </h6>
+                  <p class="timeline-description text-muted">
+                    <%= format_datetime(@swap.updated_at) %>
+                    <%= if has_error?(@swap) do %>
+                      <br><span class="text-danger"><%= gettext "Error:" %> <%= @swap.error_message %></span>
+                    <% end %>
+                  </p>
+                </div>
+              </div>
+
+              <!-- Settlement (if completed) -->
+              <%= if settled?(@swap) do %>
+                <div class="timeline-item">
+                  <div class="timeline-marker bg-success"></div>
+                  <div class="timeline-content">
+                    <h6 class="timeline-title"><%= gettext "Settlement Completed" %></h6>
+                    <p class="timeline-description text-muted">
+                      <%= if has_settlement_tx?(@swap) do %>
+                        <%= gettext "Settlement transaction:" %> <code><%= format_hash(@swap.settlement_tx_hash) %></code>
+                      <% end %>
+                    </p>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </div>
+
+          <!-- Action buttons -->
+          <div class="mt-4 d-flex gap-2">
+            <button class="btn btn-outline-primary" onclick="window.location.reload()">
+              <i class="fas fa-sync"></i>
+              <%= gettext "Refresh Status" %>
+            </button>
+            <%= link to: cross_chain_swap_path(@conn, :index), class: "btn btn-outline-secondary" do %>
+              <i class="fas fa-arrow-left"></i>
+              <%= gettext "Back to List" %>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+.timeline {
+  position: relative;
+  padding: 20px 0;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e9ecef;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 50px;
+  margin-bottom: 30px;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: 12px;
+  top: 5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 3px #e9ecef;
+}
+
+.timeline-item.active .timeline-marker {
+  box-shadow: 0 0 0 3px #007bff;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.timeline-title {
+  margin-bottom: 5px;
+  font-weight: 600;
+}
+
+.timeline-description {
+  margin-bottom: 0;
+  font-size: 0.9rem;
+}
+</style>

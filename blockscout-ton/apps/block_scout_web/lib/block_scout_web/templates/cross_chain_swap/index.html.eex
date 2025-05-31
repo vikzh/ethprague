@@ -1,0 +1,119 @@
+<section class="container" data-page="cross-chain-swap-list">
+  <%= render BlockScoutWeb.Advertisement.TextAdView, "index.html", conn: @conn %>
+  <div class="card">
+    <div class="card-body" data-async-listing="<%= @current_path %>">
+      <%= render BlockScoutWeb.CommonComponentsView, "_channel_disconnected_message.html", text: gettext("Connection Lost, click to load newer swaps") %>
+
+      <!-- Header with title and stats -->
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="card-title list-title-description mb-0"><%= gettext "Cross-Chain Swaps" %></h1>
+        <div class="d-flex gap-3">
+          <div class="d-flex flex-column text-center">
+            <span class="text-muted small"><%= gettext "Total" %></span>
+            <span class="font-weight-bold" data-selector="total-swaps"><%= @stats.total_swaps %></span>
+          </div>
+          <div class="d-flex flex-column text-center">
+            <span class="text-muted small"><%= gettext "Pending" %></span>
+            <span class="font-weight-bold text-warning" data-selector="pending-swaps"><%= @stats.pending_swaps %></span>
+          </div>
+          <div class="d-flex flex-column text-center">
+            <span class="text-muted small"><%= gettext "Settled" %></span>
+            <span class="font-weight-bold text-success" data-selector="settled-swaps"><%= @stats.settled_swaps %></span>
+          </div>
+          <div class="d-flex flex-column text-center">
+            <span class="text-muted small"><%= gettext "Failed" %></span>
+            <span class="font-weight-bold text-danger" data-selector="failed-swaps"><%= @stats.failed_swaps %></span>
+          </div>
+          <div class="d-flex flex-column text-center">
+            <span class="text-muted small"><%= gettext "Success Rate" %></span>
+            <span class="font-weight-bold" data-selector="success-rate"><%= success_rate(@stats) %></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filters -->
+      <div class="row mb-4">
+        <div class="col-md-3">
+          <select class="form-control" id="status-filter" data-test="status-filter">
+            <%= for {text, value} <- filter_options() do %>
+              <option value="<%= value %>" <%= if @current_filter == value, do: "selected" %>><%= text %></option>
+            <% end %>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="chain-filter" placeholder="<%= gettext("Filter by chain...") %>" data-test="chain-filter">
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="token-filter" placeholder="<%= gettext("Filter by token...") %>" data-test="token-filter">
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="search-filter" placeholder="<%= gettext("Search by hash or address...") %>" data-test="search-filter">
+        </div>
+      </div>
+
+      <div class="list-top-pagination-container-wrapper">
+        <%= render BlockScoutWeb.CommonComponentsView, "_pagination_container.html", position: "top", cur_page_number: "1", show_pagination_limit: true, data_next_page_button: true, data_prev_page_button: true %>
+      </div>
+
+      <div data-selector="channel-batching-message" class="d-none">
+        <div data-selector="reload-button" class="alert alert-info">
+          <a href="#" class="alert-link"><span data-selector="channel-batching-count"></span> <%= gettext "More swaps have come in" %></a>
+        </div>
+      </div>
+
+      <button data-error-message class="alert alert-danger col-12 text-left" style="display: none;">
+        <span class="alert-link"><%= gettext("Something went wrong, click to reload.") %></span>
+      </button>
+
+      <div data-empty-response-message style="display: none;">
+        <div class="tile tile-muted text-center">
+          <span data-selector="empty-swaps-list">
+            <%= gettext "There are no cross-chain swaps." %>
+          </span>
+        </div>
+      </div>
+
+      <!-- Mobile responsive table -->
+      <div class="d-none d-md-block">
+        <div class="table-responsive">
+          <table class="table table-sm font-size-responsive">
+            <thead class="text-nowrap">
+              <tr>
+                <th><%= gettext "Status" %></th>
+                <th><%= gettext "Chain Route" %></th>
+                <th><%= gettext "Amount" %></th>
+                <th><%= gettext "Transaction Hash" %></th>
+                <th><%= gettext "User Address" %></th>
+                <th><%= gettext "Time" %></th>
+              </tr>
+            </thead>
+            <tbody data-selector="swaps-list" data-items>
+              <%= render BlockScoutWeb.CommonComponentsView, "_tile-loader.html" %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Mobile cards -->
+      <div class="d-md-none" data-selector="swaps-list-mobile" data-items>
+        <%= render BlockScoutWeb.CommonComponentsView, "_tile-loader.html" %>
+      </div>
+
+      <%= render BlockScoutWeb.CommonComponentsView, "_pagination_container.html", position: "bottom", cur_page_number: "1", show_pagination_limit: true, data_next_page_button: true, data_prev_page_button: true %>
+
+    </div>
+  </div>
+
+  <!-- Auto-refresh toggle -->
+  <div class="d-flex justify-content-end mt-3">
+    <div class="form-check form-switch">
+      <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
+      <label class="form-check-label" for="auto-refresh-toggle">
+        <%= gettext "Auto refresh (5s)" %>
+      </label>
+    </div>
+  </div>
+
+  <script defer data-cfasync="false" src="<%= static_path(@conn, "/js/cross-chain-swaps.js") %>"></script>
+  <link rel="stylesheet" href="<%= static_path(@conn, "/css/cross-chain-swaps-styles.css") %>" />
+</section>

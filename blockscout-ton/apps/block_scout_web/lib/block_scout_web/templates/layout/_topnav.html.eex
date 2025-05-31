@@ -74,6 +74,9 @@
                     to: withdrawal_path(@conn, :index),
                     class: "dropdown-item #{tab_status("reorgs", @conn.request_path)}")%>
               <% end %>
+              <%= link(gettext("Cross-Chain Swaps"),
+                    to: cross_chain_swap_path(@conn, :index),
+                    class: "dropdown-item #{tab_status("cross-chain-swaps", @conn.request_path)}")%>
             </div>
           </li>
           <li class="nav-item dropdown">

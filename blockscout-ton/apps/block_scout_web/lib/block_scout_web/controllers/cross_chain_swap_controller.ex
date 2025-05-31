@@ -183,7 +183,7 @@ defmodule BlockScoutWeb.CrossChainSwapController do
     }
   end
 
-  defp set_not_found_view(conn, id, message \\ "Not found") do
+  defp set_not_found_view(conn, id, message) do
     conn
     |> put_status(:not_found)
     |> put_view(BlockScoutWeb.ErrorView)

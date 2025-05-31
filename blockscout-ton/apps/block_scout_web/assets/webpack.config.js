@@ -77,7 +77,9 @@ const appJs =
       'csv-download': './js/lib/csv_download.js',
       'dropzone': './js/lib/dropzone.js',
       'delete-item-handler': './js/pages/account/delete_item_handler.js',
-      'public-tags-request-form': './js/lib/public_tags_request_form.js'
+      'public-tags-request-form': './js/lib/public_tags_request_form.js',
+      'cross-chain-swaps': './js/cross-chain-swaps.js',
+      'cross-chain-swaps-styles': './css/cross-chain-swaps.scss'
     },
     output: {
       filename: '[name].js',
