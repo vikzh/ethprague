@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
+import fs from 'fs/promises';
 
 import { TonClient } from "@ton/ton";
 import { Address } from "@ton/core";
@@ -81,6 +82,34 @@ app.get('/messages', async (req, res) => {
   res.json(rows);
 });
 
+// GET /messages-page - serve HTML page with messages
+app.get('/', async (req, res) => {
+  try {
+    const db = await dbPromise;
+    const rows = await db.all('SELECT * FROM messages');
+    
+    // Create HTML content
+    const messagesHtml = rows.map(msg => `
+      <div class="message">
+        <div class="message-title">${msg.title}</div>
+        <div class="message-content">${msg.content}</div>
+        <div class="message-timestamp">${new Date(msg.timestamp).toLocaleString()}</div>
+      </div>
+    `).join('');
+
+    // Read the template file
+    const template = await fs.readFile(path.join(__dirname, 'templates', 'messages.html'), 'utf-8');
+    
+    // Replace the placeholder with actual messages
+    const renderedHtml = template.replace('<!-- Messages will be inserted here -->', messagesHtml);
+    
+    res.send(renderedHtml);
+  } catch (error) {
+    console.error('Error rendering messages:', error);
+    res.status(500).send('Error fetching messages');
+  }
+});
+
 app.get('/weth-balance', async (req, res) => {
   const { address } = req.query;
 
@@ -108,6 +137,12 @@ app.get('/weth-balance', async (req, res) => {
 });
 
 
+
+
+//------------------------
+//TON endpoints
+//------------------------
+
 app.get('/ton-balance', async (req, res) => {
   const { address } = req.query;
 
@@ -125,7 +160,35 @@ app.get('/ton-balance', async (req, res) => {
   res.json({total})
 });
 
-// Start the server after DB is ready
+app.get('/ton-escrow', async (req, res) => {
+  const { address } = req.query;
+
+  const client = new TonClient({
+    endpoint: "https://toncenter.com/api/v2/jsonRPC",
+  });
+
+  // Call get method
+  const result = await client.runMethod(
+    Address.parse(address),
+    "get_escrow_data"
+  );
+
+  const orderId = result.stack.readNumber();
+  const fromAddress = result.stack.readAddress();
+  const fromAmount = result.stack.readNumber();
+
+  console.log("test:", orderId, fromAddress, fromAmount);
+  res.json({total})
+});
+
+
+
+
+//-------------------------------
+//
+// Server Start after DB is ready
+//
+//-------------------------------
 initDb().then(() => {
   app.listen(port, () => {
     console.log(`Server is running at http://localhost:${port}`);
