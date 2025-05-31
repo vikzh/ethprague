@@ -34,9 +34,16 @@ const app = express();
 const port = 8080;
 app.use(express.json());
 
-// Helper function to read messages from JSON file
+
+
+//---------------------------------------------
+// File Management
+// --------------------------------------------
+
+// Helper function to read orders from JSON file
 const readOrders = async () => {
   try {
+    console.log("Reading orders from json");
     const data = await fs.readFile(path.join(__dirname, 'data/orders.json'), 'utf-8');
     return JSON.parse(data);
   } catch (error) {
@@ -45,15 +52,19 @@ const readOrders = async () => {
   }
 };
 
-// Helper function to write messages to JSON file
+// Helper function to write orders to JSON file
 const writeOrders = async (messages) => {
   try {
+    console.log("Writing orders to json file");
     await fs.writeFile(path.join(__dirname, 'data/orders.json'), JSON.stringify(messages, null, 2));
   } catch (error) {
     console.error('Error writing orders:', error);
     throw error;
   }
 };
+
+
+
 
 
 // Middleware to parse JSON bodies
@@ -63,6 +74,11 @@ app.use(express.json());
 app.get('/status', (req, res) => {
   res.json({ status: 'Server is running', uptime: process.uptime() });
 });
+
+
+// -------------
+// Orders
+// -------------
 
 // POST /echo - stores message in JSON file
 app.post('/add-order', async (req, res) => {
@@ -194,7 +210,7 @@ app.get('/ton-balance', async (req, res) => {
 });
 
 const calculateAddress = async (userAddress, orderId) => {
-    console.log(`Calculate address: ${userAddress}, orderId: ${orderId}`);
+    console.log(`Calculate order address for User: ${userAddress}, orderId: ${orderId}`);
     const contractAddress = "kQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOX3s";
 
     const client = new TonClient({
@@ -220,25 +236,6 @@ const calculateAddress = async (userAddress, orderId) => {
     const stack = result.stack;
     const fromAddress = stack.readAddress();
     return fromAddress;
-    // const orderId = stack.readBigNumber();          // uint64 / uint128
-    // const fromAddress = stack.readAddress();        // address
-    // const fromAmount = stack.readBigNumber();       // uint64 / uint128
-    // const toNetwork = stack.readNumber();           // int or enum
-    // const toAddress = stack.readBigNumber(); // cell containing a string
-    // const toAmount = stack.readBigNumber();         // uint64 / uint128
-    // const hashKey = stack.readBigNumber();         // uint64 / uint128
-    // // const resolverAddr = stack.readAddress();       // address
-    //
-    // res.json({
-    //   order_id: orderId.toString(),
-    //   from_address: fromAddress.toString(),
-    //   from_amount: fromAmount.toString(),
-    //   to_network: toNetwork,
-    //   to_address: toAddress.toString(),
-    //   to_amount: toAmount.toString(),
-    //   hash_key: hashKey.toString(),
-    //   // resolver_addr: resolverAddr.toString()
-    // });
 }
 
 app.get('/ton-escrow-address', async (req, res) => {
@@ -256,11 +253,10 @@ app.get('/ton-escrow-address', async (req, res) => {
 
 app.get('/ton-escrow', async (req, res) => {
   const { address, orderId } = req.query;
-  console.log(`Calculate address: ${address}, orderId: ${orderId}`);
+  console.log(`Request to get order from ton smart contract for UserAddress: ${address}, orderId: ${orderId}`);
   try {
-    console.log(`Calculate address: ${address}, orderId: ${orderId}`);
     const contractAddress = await calculateAddress(address, orderId);
-    console.log('arstarstarstart',contractAddress);
+    console.log('calculated address to get info about order: ',contractAddress);
 
     const client = new TonClient({
       endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
