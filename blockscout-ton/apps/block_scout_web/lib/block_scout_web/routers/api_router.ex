@@ -494,6 +494,13 @@ defmodule BlockScoutWeb.Routers.ApiRouter do
       get("/csv", V2.AdvancedFilterController, :list_csv)
       get("/methods", V2.AdvancedFilterController, :list_methods)
     end
+    
+    scope "/cross-chain-swaps" do
+      get("/", V2.CrossChainSwapController, :cross_chain_swaps)
+      get("/stats", V2.CrossChainSwapController, :stats)
+      get("/status-poll", V2.CrossChainSwapController, :status_poll)
+      get("/:id", V2.CrossChainSwapController, :cross_chain_swap)
+    end
   end
 
   scope "/v1/graphql" do
