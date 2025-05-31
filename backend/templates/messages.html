@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messages</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .messages-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .message {
+            border-bottom: 1px solid #eee;
+            padding: 15px 0;
+        }
+        .message:last-child {
+            border-bottom: none;
+        }
+        .message-title {
+            font-weight: bold;
+            color: #333;
+        }
+        .message-content {
+            margin-top: 5px;
+            color: #666;
+        }
+        .message-timestamp {
+            font-size: 0.9em;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <div class="messages-container">
+        <h1>Messages</h1>
+        <div id="messages-list">
+            <!-- Messages will be inserted here -->
+        </div>
+    </div>
+
+</body>
+</html>
