@@ -18,14 +18,14 @@ async function main() {
   }
 
   // Configuration
-  const RESCUE_DELAY = 7 * 24 * 60 * 60; // 7 days
-  const CREATION_FEE = ethers.parseEther("0.01"); // 0.01 ETH
-  const TREASURY_ADDRESS = deployer.address; // Use deployer as treasury for testing
+  const RESCUE_DELAY = 7 * 24 * 60 * 60; // 7 days in seconds
+  const CREATION_FEE = ethers.parseEther("0.0001"); // Ultra-low fee: 0.0001 ETH (100x cheaper!)
+  const TREASURY_ADDRESS = deployer.address; // Using deployer as treasury for testing
   const WITHDRAWAL_PERIOD = 60; // 1 minute for fast testing
 
   console.log("\n📊 Deployment Configuration:");
   console.log("   - Rescue Delay:", RESCUE_DELAY, "seconds (7 days)");
-  console.log("   - Creation Fee:", ethers.formatEther(CREATION_FEE), "ETH");
+  console.log("   - Creation Fee:", ethers.formatEther(CREATION_FEE), "ETH (ultra-low for testing!)");
   console.log("   - Treasury Address:", TREASURY_ADDRESS);
   console.log("   - Withdrawal Period:", WITHDRAWAL_PERIOD / 60, "minute (for fast testing)");
 

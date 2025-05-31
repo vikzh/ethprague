@@ -65,7 +65,7 @@ contract MockEscrowFactory is IEscrowFactory {
             IERC20(token).safeTransferFrom(msg.sender, escrow, dstImmutables.amount);
         }
 
-        emit DstEscrowCreated(escrow, dstImmutables.hashlock, dstImmutables.taker);
+        emit DstEscrowCreated(escrow, dstImmutables.hashlock, dstImmutables.taker, msg.sender, 0);
     }
 
     /**

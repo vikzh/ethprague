@@ -43,48 +43,50 @@ async function main() {
   console.log("\n📋 Escrow Status:");
   const escrowInfo = loadJsonFile(escrowPath);
   if (escrowInfo) {
-    console.log("   ✅ Escrow created");
+    console.log("   ✅ Escrow deployed");
     console.log("   📍 Address:", escrowInfo.escrowAddress);
-    console.log("   📅 Created:", new Date(escrowInfo.deploymentTime));
-    console.log("   💰 Amount:", ethers.formatEther(escrowInfo.amounts.swapAmount), "ETH");
-    console.log("   🛡️  Safety Deposit:", ethers.formatEther(escrowInfo.amounts.safetyDeposit), "ETH");
-    console.log("   👤 Taker:", escrowInfo.participants.taker);
-    console.log("   👤 Maker:", escrowInfo.participants.maker);
-
-    // Check timing
-    const currentTime = Math.floor(Date.now() / 1000);
-    const withdrawalTime = escrowInfo.timelock.withdrawalOpensAt;
-    const publicWithdrawalTime = escrowInfo.timelock.publicWithdrawalOpensAt;
-    const cancellationTime = escrowInfo.timelock.cancellationOpensAt;
-
-    console.log("\n   ⏰ Timelock Status:");
-    const canWithdrawPrivate = currentTime >= withdrawalTime && currentTime < cancellationTime;
-    const canWithdrawPublic = currentTime >= publicWithdrawalTime && currentTime < cancellationTime;
-    const canCancel = currentTime >= cancellationTime;
-
-    if (canWithdrawPrivate) {
-      console.log("   ✅ Private withdrawal available");
-    } else if (currentTime < withdrawalTime) {
-      const waitTime = withdrawalTime - currentTime;
-      console.log(`   ⏳ Private withdrawal in ${waitTime} seconds (${Math.ceil(waitTime / 60)} minutes)`);
+    console.log("   📅 Created:", new Date(escrowInfo.deploymentTime).toLocaleString());
+    
+    // Show swap type and details
+    const isERC20Swap = escrowInfo.metadata?.swapType === "ERC20";
+    if (isERC20Swap && escrowInfo.token) {
+      console.log("   🪙 Swap Type: TON → ERC20");
+      console.log("   💱 Token:", escrowInfo.token.symbol, `(${escrowInfo.token.address})`);
+      console.log("   💰 Amount:", ethers.formatEther(escrowInfo.amounts.swapAmount), escrowInfo.token.symbol);
+    } else {
+      console.log("   🪙 Swap Type: TON → ETH");
+      console.log("   💰 Amount:", ethers.formatEther(escrowInfo.amounts.swapAmount), "ETH");
     }
-
-    if (canWithdrawPublic) {
-      console.log("   ✅ Public withdrawal available");
-    } else if (currentTime < publicWithdrawalTime) {
-      const waitTime = publicWithdrawalTime - currentTime;
-      console.log(`   ⏳ Public withdrawal in ${waitTime} seconds (${Math.ceil(waitTime / 60)} minutes)`);
-    }
-
-    if (canCancel) {
-      console.log("   🔴 Cancellation period (escrow can be cancelled)");
-    }
-
+    
+    console.log("   🛡️ Safety Deposit:", ethers.formatEther(escrowInfo.amounts.safetyDeposit), "ETH");
+    console.log("   💳 Creation Fee:", ethers.formatEther(escrowInfo.amounts.creationFee), "ETH");
+    
+    // Calculate timelock status
+    const now = Math.floor(Date.now() / 1000);
+    const timelock = escrowInfo.timelock;
+    
+    console.log("\n⏰ Timelock Status:");
+    
+    const withdrawalStatus = now >= timelock.withdrawalOpensAt ? "✅ Open" : "⏳ Waiting";
+    const withdrawalTime = new Date(timelock.withdrawalOpensAt * 1000).toLocaleString();
+    console.log(`   - Private Withdrawal: ${withdrawalStatus} (${withdrawalTime})`);
+    
+    const publicStatus = now >= timelock.publicWithdrawalOpensAt ? "✅ Open" : "⏳ Waiting";
+    const publicTime = new Date(timelock.publicWithdrawalOpensAt * 1000).toLocaleString();
+    console.log(`   - Public Withdrawal: ${publicStatus} (${publicTime})`);
+    
+    const cancelStatus = now >= timelock.cancellationOpensAt ? "✅ Open" : "⏳ Waiting";
+    const cancelTime = new Date(timelock.cancellationOpensAt * 1000).toLocaleString();
+    console.log(`   - Cancellation: ${cancelStatus} (${cancelTime})`);
+    
+    // Show participants
+    console.log("\n👥 Participants:");
+    console.log("   - Deployer:", escrowInfo.participants.deployer);
+    console.log("   - Taker:", escrowInfo.participants.taker);
+    console.log("   - Maker:", escrowInfo.participants.maker);
   } else {
     console.log("   ❌ No escrow found");
-    if (deploymentInfo) {
-      console.log("   💡 Run: npx hardhat run scripts/interact.ts --network <network>");
-    }
+    console.log("   💡 Run: npx hardhat run scripts/interact.ts --network <network>");
   }
 
   // Check withdrawal status

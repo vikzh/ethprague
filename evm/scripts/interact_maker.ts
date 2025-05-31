@@ -73,14 +73,35 @@ async function main() {
   console.log("   - Escrow:", await escrow.getAddress());
   console.log("   - Access Token:", await accessToken.getAddress());
 
+  // Check if this is an ERC20 swap and get token contract
+  const isERC20Swap = escrowInfo.metadata?.swapType === "ERC20";
+  let tokenContract: MockERC20 | null = null;
+  let tokenInfo = null;
+  
+  if (isERC20Swap && escrowInfo.token) {
+    tokenContract = await ethers.getContractAt("MockERC20", escrowInfo.token.address) as MockERC20;
+    tokenInfo = escrowInfo.token;
+    console.log("   - Swap Token:", escrowInfo.token.address, `(${escrowInfo.token.symbol})`);
+  }
+
   try {
     // Check initial balances
     console.log("\n💰 Step 1: Checking initial balances...");
     const signerBalance = await ethers.provider.getBalance(signer.address);
-    const escrowBalance = await ethers.provider.getBalance(ESCROW_ADDRESS);
+    const escrowETHBalance = await ethers.provider.getBalance(ESCROW_ADDRESS);
     
-    console.log("   - Signer balance:", ethers.formatEther(signerBalance), "ETH");
-    console.log("   - Escrow balance:", ethers.formatEther(escrowBalance), "ETH");
+    console.log("   - Signer ETH balance:", ethers.formatEther(signerBalance), "ETH");
+    console.log("   - Escrow ETH balance:", ethers.formatEther(escrowETHBalance), "ETH");
+
+    // Check token balances if ERC20 swap
+    if (isERC20Swap && tokenContract) {
+      const makerAddress = `0x${BigInt(IMMUTABLES.maker).toString(16).padStart(40, '0')}`;
+      const escrowTokenBalance = await tokenContract.balanceOf(ESCROW_ADDRESS);
+      const makerTokenBalance = await tokenContract.balanceOf(makerAddress);
+      
+      console.log(`   - Escrow ${tokenInfo?.symbol} balance:`, ethers.formatEther(escrowTokenBalance), tokenInfo?.symbol);
+      console.log(`   - Maker ${tokenInfo?.symbol} balance:`, ethers.formatEther(makerTokenBalance), tokenInfo?.symbol);
+    }
 
     // Check if we have access tokens for public withdrawal
     const accessBalance = await accessToken.balanceOf(signer.address);
@@ -165,12 +186,21 @@ async function main() {
     console.log("   - Signer (will receive safety deposit):", signer.address);
 
     // Get balances before withdrawal
-    const makerBalanceBefore = await ethers.provider.getBalance(makerAddress);
-    const signerBalanceBefore = await ethers.provider.getBalance(signer.address);
+    const makerETHBalanceBefore = await ethers.provider.getBalance(makerAddress);
+    const signerETHBalanceBefore = await ethers.provider.getBalance(signer.address);
+    
+    let makerTokenBalanceBefore = 0n;
+    if (isERC20Swap && tokenContract) {
+      makerTokenBalanceBefore = await tokenContract.balanceOf(makerAddress);
+    }
     
     console.log("\n📊 Balances before withdrawal:");
-    console.log("   - Maker:", ethers.formatEther(makerBalanceBefore), "ETH");
-    console.log("   - Signer:", ethers.formatEther(signerBalanceBefore), "ETH");
+    console.log("   - Maker ETH:", ethers.formatEther(makerETHBalanceBefore), "ETH");
+    console.log("   - Signer ETH:", ethers.formatEther(signerETHBalanceBefore), "ETH");
+    
+    if (isERC20Swap && tokenContract) {
+      console.log(`   - Maker ${tokenInfo?.symbol}:`, ethers.formatEther(makerTokenBalanceBefore), tokenInfo?.symbol);
+    }
 
     // Execute withdrawal
     let tx;
@@ -188,22 +218,39 @@ async function main() {
 
     // Check balances after withdrawal
     console.log("\n📊 Balances after withdrawal:");
-    const makerBalanceAfter = await ethers.provider.getBalance(makerAddress);
-    const signerBalanceAfter = await ethers.provider.getBalance(signer.address);
-    const escrowBalanceAfter = await ethers.provider.getBalance(ESCROW_ADDRESS);
+    const makerETHBalanceAfter = await ethers.provider.getBalance(makerAddress);
+    const signerETHBalanceAfter = await ethers.provider.getBalance(signer.address);
+    const escrowETHBalanceAfter = await ethers.provider.getBalance(ESCROW_ADDRESS);
     
-    console.log("   - Maker:", ethers.formatEther(makerBalanceAfter), "ETH");
-    console.log("   - Signer:", ethers.formatEther(signerBalanceAfter), "ETH");
-    console.log("   - Escrow:", ethers.formatEther(escrowBalanceAfter), "ETH");
+    let makerTokenBalanceAfter = 0n;
+    let escrowTokenBalanceAfter = 0n;
+    
+    if (isERC20Swap && tokenContract) {
+      makerTokenBalanceAfter = await tokenContract.balanceOf(makerAddress);
+      escrowTokenBalanceAfter = await tokenContract.balanceOf(ESCROW_ADDRESS);
+      
+      console.log(`   - Maker ${tokenInfo?.symbol}:`, ethers.formatEther(makerTokenBalanceAfter), tokenInfo?.symbol);
+      console.log(`   - Escrow ${tokenInfo?.symbol}:`, ethers.formatEther(escrowTokenBalanceAfter), tokenInfo?.symbol);
+    }
+    
+    console.log("   - Maker ETH:", ethers.formatEther(makerETHBalanceAfter), "ETH");
+    console.log("   - Signer ETH:", ethers.formatEther(signerETHBalanceAfter), "ETH");
+    console.log("   - Escrow ETH:", ethers.formatEther(escrowETHBalanceAfter), "ETH");
 
     // Calculate changes
-    const makerGain = makerBalanceAfter - makerBalanceBefore;
+    const makerETHGain = makerETHBalanceAfter - makerETHBalanceBefore;
+    const makerTokenGain = isERC20Swap ? makerTokenBalanceAfter - makerTokenBalanceBefore : 0n;
     const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
-    const signerChange = signerBalanceAfter - signerBalanceBefore + gasUsed; // Add back gas cost
+    const signerETHChange = signerETHBalanceAfter - signerETHBalanceBefore + gasUsed; // Add back gas cost
     
     console.log("\n📈 Balance changes:");
-    console.log("   - Maker gained:", ethers.formatEther(makerGain), "ETH");
-    console.log("   - Signer gained (before gas):", ethers.formatEther(signerChange), "ETH");
+    if (isERC20Swap) {
+      console.log(`   - Maker gained: ${ethers.formatEther(makerTokenGain)} ${tokenInfo?.symbol} (swap amount) ✅`);
+      console.log("   - Maker ETH change:", ethers.formatEther(makerETHGain), "ETH");
+    } else {
+      console.log("   - Maker gained:", ethers.formatEther(makerETHGain), "ETH (swap amount) ✅");
+    }
+    console.log("   - Signer gained (before gas):", ethers.formatEther(signerETHChange), "ETH (safety deposit) ✅");
     console.log("   - Gas cost:", ethers.formatEther(gasUsed), "ETH");
 
     // Verify withdrawal event
@@ -226,9 +273,12 @@ async function main() {
       withdrawer: signer.address,
       secretRevealed: SECRET,
       gasUsed: receipt?.gasUsed.toString(),
+      swapType: isERC20Swap ? "ERC20" : "ETH",
+      tokenInfo: tokenInfo,
       balanceChanges: {
-        makerGain: makerGain.toString(),
-        signerGain: signerChange.toString(),
+        makerETHGain: makerETHGain.toString(),
+        makerTokenGain: makerTokenGain.toString(),
+        signerETHGain: signerETHChange.toString(),
         gasCost: gasUsed.toString()
       },
       escrowAddress: ESCROW_ADDRESS,
@@ -242,9 +292,15 @@ async function main() {
 
     console.log("\n🎉 ATOMIC SWAP COMPLETED!");
     console.log("=========================");
-    console.log("✅ Funds successfully withdrawn from escrow");
-    console.log("✅ Maker received swap amount");
-    console.log("✅ Withdrawer received safety deposit");
+    if (isERC20Swap) {
+      console.log(`✅ Maker received ${ethers.formatEther(makerTokenGain)} ${tokenInfo?.symbol}`);
+      console.log(`✅ Withdrawer received ${ethers.formatEther(signerETHChange)} ETH safety deposit`);
+      console.log("✅ ERC20 atomic swap successful!");
+    } else {
+      console.log("✅ Funds successfully withdrawn from escrow");
+      console.log("✅ Maker received swap amount");
+      console.log("✅ Withdrawer received safety deposit");
+    }
     console.log("✅ Secret revealed on blockchain");
     
     console.log("\n🔄 Cross-chain completion:");

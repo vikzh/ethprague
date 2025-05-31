@@ -116,7 +116,30 @@ contract EscrowFactory is IEscrowFactory, Ownable {
             if (!success) revert FeeTransferFailed();
         }
 
-        emit DstEscrowCreated(escrow, dstImmutables.hashlock, dstImmutables.taker);
+        // Detect creator type for enhanced analytics
+        uint8 creatorType = _detectCreatorType(msg.sender, dstImmutables);
+
+        emit DstEscrowCreated(escrow, dstImmutables.hashlock, dstImmutables.taker, msg.sender, creatorType);
+    }
+
+    /**
+     * @notice Helper function to detect creator type for analytics
+     * @param creator The address creating the escrow
+     * @param immutables The escrow immutables
+     * @return creatorType 0=Resolver, 1=Maker, 2=Taker, 3=Other
+     */
+    function _detectCreatorType(address creator, IBaseEscrow.Immutables calldata immutables) 
+        private 
+        view 
+        returns (uint8) 
+    {
+        address maker = immutables.maker.get();
+        address taker = immutables.taker.get();
+        
+        if (creator == maker) return 1;        // Maker
+        if (creator == taker) return 2;        // Taker  
+        if (ACCESS_TOKEN.balanceOf(creator) > 0) return 0; // Resolver (has access tokens)
+        return 3;                              // Other
     }
 
     /**

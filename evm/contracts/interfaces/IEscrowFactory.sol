@@ -40,8 +40,16 @@ interface IEscrowFactory {
      * @param escrow The address of the created escrow.
      * @param hashlock The hash of the secret.
      * @param taker The address of the taker.
+     * @param creator The address of who created the escrow (maker, resolver, etc).
+     * @param creatorType Type of creator: 0=Resolver, 1=Maker, 2=Taker, 3=Other
      */
-    event DstEscrowCreated(address escrow, bytes32 hashlock, Address taker);
+    event DstEscrowCreated(
+        address escrow, 
+        bytes32 hashlock, 
+        Address taker,
+        address indexed creator,
+        uint8 creatorType
+    );
 
     /* solhint-disable func-name-mixedcase */
     /// @notice Returns the address of implementation on the destination chain.
