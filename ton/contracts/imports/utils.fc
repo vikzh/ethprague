@@ -1,0 +1,29 @@
+#include "stdlib.fc";
+
+int workchain() asm "0 PUSHINT";
+
+cell pack_data(slice owner_address, slice master_address, int order_id) inline {
+    return begin_cell()
+        .store_slice(owner_address)
+        .store_slice(master_address)
+        .store_uint(order_id, 32)
+        .end_cell();
+}
+
+cell calculate_user_escrow_state_init(slice owner_address, slice master_address, cell escrow_code, int order_id) inline {
+    cell state_init = pack_data(owner_address, master_address, order_id);
+    return begin_cell()
+        .store_uint(0, 2)
+        .store_dict(escrow_code)
+        .store_dict(state_init)
+        .store_uint(0, 1)
+        .end_cell();
+}
+
+slice calculate_user_escrow_address(cell state_init) inline {
+    return begin_cell().store_uint(4, 3)
+        .store_int(workchain(), 8)
+        .store_uint(cell_hash(state_init), 256)
+        .end_cell()
+        .begin_parse();
+}
