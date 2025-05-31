@@ -35,22 +35,22 @@ const port = 3000;
 app.use(express.json());
 
 // Helper function to read messages from JSON file
-const readMessages = async () => {
+const readOrders = async () => {
   try {
-    const data = await fs.readFile(path.join(__dirname, 'data/messages.json'), 'utf-8');
+    const data = await fs.readFile(path.join(__dirname, 'data/orders.json'), 'utf-8');
     return JSON.parse(data);
   } catch (error) {
-    console.error('Error reading messages:', error);
+    console.error('Error reading orders:', error);
     return [];
   }
 };
 
 // Helper function to write messages to JSON file
-const writeMessages = async (messages) => {
+const writeOrders = async (messages) => {
   try {
-    await fs.writeFile(path.join(__dirname, 'data/messages.json'), JSON.stringify(messages, null, 2));
+    await fs.writeFile(path.join(__dirname, 'data/orders.json'), JSON.stringify(messages, null, 2));
   } catch (error) {
-    console.error('Error writing messages:', error);
+    console.error('Error writing orders:', error);
     throw error;
   }
 };
@@ -65,23 +65,22 @@ app.get('/status', (req, res) => {
 });
 
 // POST /echo - stores message in JSON file
-app.post('/add-message', async (req, res) => {
-  const { key } = req.body;
-  console.log(key);
+app.post('/add-order', async (req, res) => {
+  const { orderId, userAddress } = req.body;
 
-  if (!key || typeof key !== 'string') {
+  if (!orderId || !userAddress) {
     return res.status(400).json({ error: 'Missing or invalid content field' });
   }
 
   try {
-    const messages = await readMessages();
-    const newMessage = {
-      id: messages.length > 0 ? messages[messages.length - 1].id + 1 : 1,
-      content: key,
+    const orders = await readOrders();
+    const newOrder = {
+      orderId,
+      userAddress,
       timestamp: new Date().toISOString()
     };
-    messages.push(newMessage);
-    await writeMessages(messages);
+    orders.push(newOrder);
+    await writeOrders(orders);
     res.json({ message: 'Stored successfully' });
   } catch (error) {
     console.error('Error storing message:', error);
@@ -90,7 +89,7 @@ app.post('/add-message', async (req, res) => {
 });
 
 // DELETE /delete-message - delete message by ID
-app.post('/delete-message', async (req, res) => {
+app.post('/delete-order', async (req, res) => {
   console.log(req.body);
   const { id } = req.body;
 
@@ -99,9 +98,9 @@ app.post('/delete-message', async (req, res) => {
   }
 
   try {
-    const messages = await readMessages();
-    const updatedMessages = messages.filter(msg => msg.id !== id);
-    await writeMessages(updatedMessages);
+    const orders = await readOrders();
+    const updatedOrders = orders.filter(msg => msg.id !== id);
+    await writeOrders(updatedOrders);
     res.redirect('/');
   } catch (error) {
     console.error('Error deleting message:', error);
@@ -109,11 +108,11 @@ app.post('/delete-message', async (req, res) => {
   }
 });
 
-// GET /messages - retrieve all stored strings
-app.get('/messages', async (req, res) => {
+// GET /orders - retrieve all stored strings
+app.get('/orders', async (req, res) => {
   try {
-    const messages = await readMessages();
-    res.json(messages);
+    const orders = await readOrders();
+    res.json(orders);
   } catch (error) {
     console.error('Error fetching messages:', error);
     res.status(500).json({ error: 'Failed to fetch messages' });
