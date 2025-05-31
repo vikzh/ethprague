@@ -34,6 +34,7 @@ defmodule Indexer.Supervisor do
   alias Indexer.Fetcher.{
     BlockReward,
     ContractCode,
+    CrossChainSwapPoller,
     EmptyBlocksSanitizer,
     InternalTransaction,
     PendingBlockOperationsSanitizer,
@@ -83,7 +84,11 @@ defmodule Indexer.Supervisor do
   end
 
   def start_link(arguments, gen_server_options \\ []) do
-    Supervisor.start_link(__MODULE__, arguments, Keyword.put_new(gen_server_options, :name, __MODULE__))
+    Supervisor.start_link(
+      __MODULE__,
+      arguments,
+      Keyword.put_new(gen_server_options, :name, __MODULE__)
+    )
   end
 
   @impl Supervisor
@@ -109,16 +114,21 @@ defmodule Indexer.Supervisor do
 
     block_fetcher =
       named_arguments
-      |> Map.drop(~w(block_interval blocks_concurrency memory_monitor subscribe_named_arguments realtime_overrides)a)
+      |> Map.drop(
+        ~w(block_interval blocks_concurrency memory_monitor subscribe_named_arguments realtime_overrides)a
+      )
       |> Block.Fetcher.new()
 
     realtime_block_fetcher =
       named_arguments
-      |> Map.drop(~w(block_interval blocks_concurrency memory_monitor subscribe_named_arguments realtime_overrides)a)
+      |> Map.drop(
+        ~w(block_interval blocks_concurrency memory_monitor subscribe_named_arguments realtime_overrides)a
+      )
       |> Map.merge(Enum.into(realtime_overrides, %{}))
       |> Block.Fetcher.new()
 
-    realtime_subscribe_named_arguments = realtime_overrides[:subscribe_named_arguments] || subscribe_named_arguments
+    realtime_subscribe_named_arguments =
+      realtime_overrides[:subscribe_named_arguments] || subscribe_named_arguments
 
     basic_fetchers =
       [
@@ -133,7 +143,8 @@ defmodule Indexer.Supervisor do
          [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]},
         {CoinBalanceRealtime.Supervisor,
          [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]},
-        {Token.Supervisor, [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]},
+        {Token.Supervisor,
+         [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]},
         {TokenInstanceRealtime.Supervisor, [[memory_monitor: memory_monitor]]},
         {TokenInstanceRetry.Supervisor, [[memory_monitor: memory_monitor]]},
         {TokenInstanceSanitize.Supervisor, [[memory_monitor: memory_monitor]]},
@@ -153,14 +164,20 @@ defmodule Indexer.Supervisor do
           Indexer.Fetcher.Optimism.TransactionBatch.Supervisor,
           [[memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]]
         ),
-        configure(Indexer.Fetcher.Optimism.OutputRoot.Supervisor, [[memory_monitor: memory_monitor]]),
-        configure(Indexer.Fetcher.Optimism.DisputeGame.Supervisor, [[memory_monitor: memory_monitor]]),
+        configure(Indexer.Fetcher.Optimism.OutputRoot.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
+        configure(Indexer.Fetcher.Optimism.DisputeGame.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
         configure(Indexer.Fetcher.Optimism.Deposit.Supervisor, [[memory_monitor: memory_monitor]]),
         configure(
           Indexer.Fetcher.Optimism.Withdrawal.Supervisor,
           [[memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]]
         ),
-        configure(Indexer.Fetcher.Optimism.WithdrawalEvent.Supervisor, [[memory_monitor: memory_monitor]]),
+        configure(Indexer.Fetcher.Optimism.WithdrawalEvent.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
         {
           Indexer.Fetcher.Optimism.EIP1559ConfigUpdate.Supervisor,
           [[memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]]
@@ -177,14 +194,18 @@ defmodule Indexer.Supervisor do
           Indexer.Fetcher.Optimism.Interop.MessageQueue.Supervisor,
           [[memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]]
         },
-        configure(Indexer.Fetcher.PolygonEdge.Deposit.Supervisor, [[memory_monitor: memory_monitor]]),
+        configure(Indexer.Fetcher.PolygonEdge.Deposit.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
         configure(Indexer.Fetcher.PolygonEdge.DepositExecute.Supervisor, [
           [memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]
         ]),
         configure(Indexer.Fetcher.PolygonEdge.Withdrawal.Supervisor, [
           [memory_monitor: memory_monitor, json_rpc_named_arguments: json_rpc_named_arguments]
         ]),
-        configure(Indexer.Fetcher.PolygonEdge.WithdrawalExit.Supervisor, [[memory_monitor: memory_monitor]]),
+        configure(Indexer.Fetcher.PolygonEdge.WithdrawalExit.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
         configure(Indexer.Fetcher.Shibarium.L2.Supervisor, [
           [json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]
         ]),
@@ -205,8 +226,12 @@ defmodule Indexer.Supervisor do
          [
            [memory_monitor: memory_monitor]
          ]},
-        configure(Indexer.Fetcher.PolygonZkevm.BridgeL1.Supervisor, [[memory_monitor: memory_monitor]]),
-        configure(Indexer.Fetcher.PolygonZkevm.BridgeL1Tokens.Supervisor, [[memory_monitor: memory_monitor]]),
+        configure(Indexer.Fetcher.PolygonZkevm.BridgeL1.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
+        configure(Indexer.Fetcher.PolygonZkevm.BridgeL1Tokens.Supervisor, [
+          [memory_monitor: memory_monitor]
+        ]),
         configure(Indexer.Fetcher.PolygonZkevm.BridgeL2.Supervisor, [
           [json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]
         ]),
@@ -244,13 +269,15 @@ defmodule Indexer.Supervisor do
              memory_monitor: memory_monitor
            ]
          ]},
-        {Indexer.Fetcher.Zilliqa.ScillaSmartContracts.Supervisor, [[memory_monitor: memory_monitor]]},
+        {Indexer.Fetcher.Zilliqa.ScillaSmartContracts.Supervisor,
+         [[memory_monitor: memory_monitor]]},
         {Indexer.Fetcher.Beacon.Blob.Supervisor, [[memory_monitor: memory_monitor]]},
 
         # Out-of-band fetchers
         {EmptyBlocksSanitizer.Supervisor, [[json_rpc_named_arguments: json_rpc_named_arguments]]},
         {PendingTransactionsSanitizer, [[json_rpc_named_arguments: json_rpc_named_arguments]]},
         {TokenTotalSupplyUpdater, [[]]},
+        {CrossChainSwapPoller, [[]]},
 
         # Temporary workers
         {UncatalogedTokenTransfers.Supervisor, [[]]},
@@ -263,13 +290,20 @@ defmodule Indexer.Supervisor do
 
         # Block fetchers
         configure(BlockRealtime.Supervisor, [
-          %{block_fetcher: realtime_block_fetcher, subscribe_named_arguments: realtime_subscribe_named_arguments},
+          %{
+            block_fetcher: realtime_block_fetcher,
+            subscribe_named_arguments: realtime_subscribe_named_arguments
+          },
           [name: BlockRealtime.Supervisor]
         ]),
         configure(
           BlockCatchup.Supervisor,
           [
-            %{block_fetcher: block_fetcher, block_interval: block_interval, memory_monitor: memory_monitor},
+            %{
+              block_fetcher: block_fetcher,
+              block_interval: block_interval,
+              memory_monitor: memory_monitor
+            },
             [name: BlockCatchup.Supervisor]
           ]
         ),
@@ -282,7 +316,8 @@ defmodule Indexer.Supervisor do
       |> maybe_add_bridged_tokens_fetchers()
       |> add_chain_type_dependent_fetchers()
       |> maybe_add_block_reward_fetcher(
-        {BlockReward.Supervisor, [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]}
+        {BlockReward.Supervisor,
+         [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: memory_monitor]]}
       )
       |> maybe_add_nft_media_handler_processes()
 
@@ -295,12 +330,14 @@ defmodule Indexer.Supervisor do
   defp maybe_add_bridged_tokens_fetchers(basic_fetchers) do
     extended_fetchers =
       if BridgedToken.enabled?() && BridgedToken.necessary_envs_passed?() do
-        [{CalcLpTokensTotalLiquidity, [[], []]}, {SetOmniBridgedMetadataForTokens, [[], []]}] ++ basic_fetchers
+        [{CalcLpTokensTotalLiquidity, [[], []]}, {SetOmniBridgedMetadataForTokens, [[], []]}] ++
+          basic_fetchers
       else
         basic_fetchers
       end
 
-    amb_bridge_mediators = Application.get_env(:explorer, Explorer.Chain.BridgedToken)[:amb_bridge_mediators]
+    amb_bridge_mediators =
+      Application.get_env(:explorer, Explorer.Chain.BridgedToken)[:amb_bridge_mediators]
 
     if BridgedToken.enabled?() && amb_bridge_mediators && amb_bridge_mediators !== "" do
       [{SetAmbBridgedMetadataForTokens, [[], []]} | extended_fetchers]
@@ -317,10 +354,13 @@ defmodule Indexer.Supervisor do
 
   defp maybe_add_block_reward_fetcher(
          fetchers,
-         {_, [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: _memory_monitor]]} = params
+         {_,
+          [[json_rpc_named_arguments: json_rpc_named_arguments, memory_monitor: _memory_monitor]]} =
+           params
        ) do
     case Keyword.fetch(json_rpc_named_arguments, :variant) do
-      {:ok, ignored_variant} when ignored_variant not in @variants_with_implemented_fetch_beneficiaries ->
+      {:ok, ignored_variant}
+      when ignored_variant not in @variants_with_implemented_fetch_beneficiaries ->
         Application.put_env(:indexer, Indexer.Fetcher.BlockReward.Supervisor, disabled?: true)
         fetchers
 
@@ -373,7 +413,8 @@ defmodule Indexer.Supervisor do
         base_children
       end
 
-    if Application.get_env(:nft_media_handler, :enabled?) && !Application.get_env(:nft_media_handler, :worker?) do
+    if Application.get_env(:nft_media_handler, :enabled?) &&
+         !Application.get_env(:nft_media_handler, :worker?) do
       fetchers ++ children
     else
       fetchers

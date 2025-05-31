@@ -1,0 +1,70 @@
+/* Cross-chain swaps smooth animations */
+
+/* Highlight new swaps when they're added */
+.highlight-new {
+    background-color: rgba(40, 167, 69, 0.1) !important;
+    border-left: 3px solid #28a745 !important;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Fade-in animation for new swaps */
+.tile-type-cross-chain-swap {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Smooth fade for batch notifications */
+[data-selector="channel-batching-message"] {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Auto-refresh toggle styling */
+.form-check-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+.form-check-input:checked {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+/* Status badge animations */
+.badge {
+    transition: all 0.2s ease-in-out;
+}
+
+/* Chain icon styling */
+.chain-icon-ton::before {
+    content: "💎";
+    margin-right: 0.25rem;
+}
+
+.chain-icon-eth::before {
+    content: "Ξ";
+    margin-right: 0.25rem;
+    color: #627EEA;
+}
+
+.chain-icon-polygon::before {
+    content: "⬟";
+    margin-right: 0.25rem;
+    color: #8247E5;
+}
+
+.chain-icon-bsc::before {
+    content: "🔶";
+    margin-right: 0.25rem;
+}
+
+.chain-icon-default::before {
+    content: "🔗";
+    margin-right: 0.25rem;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .highlight-new {
+        border-left: none !important;
+        border-top: 3px solid #28a745 !important;
+    }
+}

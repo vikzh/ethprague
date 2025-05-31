@@ -1,6 +1,8 @@
 defmodule BlockScoutWeb.CrossChainSwapController do
   use BlockScoutWeb, :controller
 
+  require Logger
+
   import BlockScoutWeb.Account.AuthController, only: [current_user: 1]
 
   import BlockScoutWeb.Chain,
@@ -25,96 +27,187 @@ defmodule BlockScoutWeb.CrossChainSwapController do
 
   def index(conn, %{"type" => "JSON"} = params) do
     # Handle AJAX requests for real-time updates
-    options =
-      @default_options
-      |> Keyword.merge(paging_options(params))
+    try do
+      Logger.info("Processing JSON request for cross-chain swaps with params: #{inspect(params)}")
 
-    full_options =
-      options
-      |> Keyword.put(
-        :paging_options,
-        params
-        |> fetch_page_number()
-        |> update_page_parameters(
-          Chain.default_page_size(),
-          Keyword.get(options, :paging_options)
+      options =
+        @default_options
+        |> Keyword.merge(paging_options(params))
+
+      full_options =
+        options
+        |> Keyword.put(
+          :paging_options,
+          params
+          |> fetch_page_number()
+          |> update_page_parameters(
+            Chain.default_page_size(),
+            Keyword.get(options, :paging_options)
+          )
         )
+
+      query =
+        CrossChainSwap.list_swaps_query()
+        |> apply_filters(params)
+
+      Logger.info("Executing database query for swaps")
+      swaps_plus_one = query |> Chain.select_repo(full_options).all()
+
+      Logger.info("Retrieved #{length(swaps_plus_one)} swaps from database")
+
+      {swaps, next_page} = split_list_by_page(swaps_plus_one)
+
+      next_page_params =
+        next_page
+        |> next_page_params(swaps, params)
+        |> case do
+          nil ->
+            nil
+
+          next_page_params ->
+            next_page_params
+            |> Map.delete("type")
+            |> Map.delete("items_count")
+        end
+
+      Logger.info("About to render #{length(swaps)} swaps as JSON data")
+
+      # Return JSON data instead of HTML tiles
+      rendered_items =
+        Enum.map(swaps, fn swap ->
+          %{
+            id: swap.id,
+            status: swap.status,
+            source_chain: swap.source_chain_name,
+            destination_chain: swap.destination_chain_name,
+            transaction_hash: swap.transaction_hash,
+            amount: to_string(swap.amount || "0"),
+            token_symbol: swap.token_symbol,
+            user_address: swap.user_address,
+            settlement_tx_hash: swap.settlement_tx_hash,
+            error_message: swap.error_message,
+            inserted_at: DateTime.to_iso8601(swap.inserted_at),
+            updated_at: DateTime.to_iso8601(swap.updated_at)
+          }
+        end)
+
+      Logger.info("Successfully prepared JSON data for all swaps")
+
+      json(
+        conn,
+        %{
+          items: rendered_items,
+          next_page_params: next_page_params
+        }
       )
+    rescue
+      error ->
+        Logger.error("Critical error in cross-chain swaps index/JSON: #{inspect(error)}")
+        Logger.error("Error type: #{error.__struct__}")
+        Logger.error("Request params: #{inspect(params)}")
+        Logger.error("Stack trace: #{Exception.format_stacktrace(__STACKTRACE__)}")
 
-    query =
-      CrossChainSwap.list_swaps_query()
-      |> apply_filters(params)
-
-    swaps_plus_one = query |> Chain.select_repo(full_options).all()
-    {swaps, next_page} = split_list_by_page(swaps_plus_one)
-
-    next_page_params =
-      next_page
-      |> next_page_params(swaps, params)
-      |> case do
-        nil ->
-          nil
-
-        next_page_params ->
-          next_page_params
-          |> Map.delete("type")
-          |> Map.delete("items_count")
-      end
-
-    json(
-      conn,
-      %{
-        items:
-          Enum.map(swaps, fn swap ->
-            View.render_to_string(
-              CrossChainSwapView,
-              "_swap_tile.html",
-              swap: swap,
-              conn: conn
-            )
-          end),
-        next_page_params: next_page_params
-      }
-    )
+        conn
+        |> put_status(500)
+        |> json(%{
+          error: "Internal server error",
+          message: Exception.message(error),
+          type: to_string(error.__struct__)
+        })
+    end
   end
 
   def index(conn, params) do
     # Main HTML page
-    current_filter = Map.get(params, "filter", "all")
+    try do
+      Logger.info("Processing HTML request for cross-chain swaps with params: #{inspect(params)}")
 
-    # Get stats for the header
-    stats = get_swap_stats()
+      current_filter = Map.get(params, "filter", "all")
 
-    render(
-      conn,
-      "index.html",
-      current_path: Controller.current_full_path(conn),
-      current_user: current_user(conn),
-      current_filter: current_filter,
-      stats: stats
-    )
+      # Get stats for the header
+      Logger.info("Getting swap stats")
+      stats = get_swap_stats()
+      Logger.info("Retrieved stats: #{inspect(stats)}")
+
+      # Get swaps for initial render
+      Logger.info("Loading swaps for initial render")
+      options = @default_options |> Keyword.merge(paging_options(params))
+
+      query = CrossChainSwap.list_swaps_query() |> apply_filters(params)
+      swaps_plus_one = query |> Chain.select_repo(options).all()
+      {swaps, next_page} = split_list_by_page(swaps_plus_one)
+
+      next_page_params = next_page |> next_page_params(swaps, params)
+
+      Logger.info("Loaded #{length(swaps)} swaps for initial render")
+
+      render(
+        conn,
+        "index.html",
+        current_path: Controller.current_full_path(conn),
+        current_user: current_user(conn),
+        current_filter: current_filter,
+        stats: stats,
+        swaps: swaps,
+        next_page_params: next_page_params
+      )
+    rescue
+      error ->
+        Logger.error("Critical error in cross-chain swaps index/HTML: #{inspect(error)}")
+        Logger.error("Error type: #{error.__struct__}")
+        Logger.error("Request params: #{inspect(params)}")
+        Logger.error("Stack trace: #{Exception.format_stacktrace(__STACKTRACE__)}")
+
+        conn
+        |> put_status(500)
+        |> put_view(BlockScoutWeb.ErrorView)
+        |> render("500.html", %{message: Exception.message(error)})
+    end
   end
 
   def show(conn, %{"id" => id} = params) do
-    with {:ok, _uuid} <- Ecto.UUID.cast(id),
-         %CrossChainSwap{} = swap <- Repo.get(CrossChainSwap, id),
-         {:ok, false} <- AccessHelper.restricted_access?(to_string(swap.user_address), params) do
-      render(
-        conn,
-        "show.html",
-        current_path: Controller.current_full_path(conn),
-        current_user: current_user(conn),
-        swap: swap
-      )
-    else
-      :error ->
-        set_not_found_view(conn, id, "Invalid swap ID format")
+    try do
+      Logger.info("Processing show request for swap ID: #{id}")
 
-      nil ->
-        set_not_found_view(conn, id, "Cross-chain swap not found")
+      with {:ok, _uuid} <- Ecto.UUID.cast(id),
+           %CrossChainSwap{} = swap <- Repo.get(CrossChainSwap, id),
+           {:ok, false} <- AccessHelper.restricted_access?(to_string(swap.user_address), params) do
+        Logger.info("Successfully retrieved swap: #{swap.id}")
+        Logger.info("Swap transaction_hash: #{inspect(swap.transaction_hash)}")
+        Logger.info("Swap structure: #{inspect(swap, limit: :infinity)}")
 
-      {:restricted_access, _} ->
-        set_not_found_view(conn, id, "Access restricted")
+        render(
+          conn,
+          "show.html",
+          current_path: Controller.current_full_path(conn),
+          current_user: current_user(conn),
+          swap: swap
+        )
+      else
+        :error ->
+          Logger.warn("Invalid UUID format for swap ID: #{id}")
+          set_not_found_view(conn, id, "Invalid swap ID format")
+
+        nil ->
+          Logger.warn("Swap not found: #{id}")
+          set_not_found_view(conn, id, "Cross-chain swap not found")
+
+        {:restricted_access, _} ->
+          Logger.warn("Access restricted for swap: #{id}")
+          set_not_found_view(conn, id, "Access restricted")
+      end
+    rescue
+      error ->
+        Logger.error("Critical error in cross-chain swap show: #{inspect(error)}")
+        Logger.error("Error type: #{error.__struct__}")
+        Logger.error("Swap ID: #{id}")
+        Logger.error("Request params: #{inspect(params)}")
+        Logger.error("Stack trace: #{Exception.format_stacktrace(__STACKTRACE__)}")
+
+        conn
+        |> put_status(500)
+        |> put_view(BlockScoutWeb.ErrorView)
+        |> render("500.html", %{message: Exception.message(error)})
     end
   end
 

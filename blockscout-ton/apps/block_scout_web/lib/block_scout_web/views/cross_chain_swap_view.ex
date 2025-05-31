@@ -108,16 +108,16 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   end
 
   @doc """
-  Returns chain icon class (for CSS styling)
+  Returns CSS class for chain icon
   """
   def chain_icon_class(chain_name) do
-    case String.downcase(chain_name) do
-      "ton" -> "chain-icon-ton"
-      "ethereum" -> "chain-icon-eth"
-      "polygon" -> "chain-icon-polygon"
-      "bsc" -> "chain-icon-bsc"
-      "arbitrum" -> "chain-icon-arbitrum"
-      "optimism" -> "chain-icon-optimism"
+    case chain_name do
+      "TON" -> "chain-icon-ton"
+      "Ethereum" -> "chain-icon-eth"
+      "Polygon" -> "chain-icon-polygon"
+      "BSC" -> "chain-icon-bsc"
+      "Arbitrum" -> "chain-icon-arbitrum"
+      "Optimism" -> "chain-icon-optimism"
       _ -> "chain-icon-default"
     end
   end
@@ -174,4 +174,19 @@ defmodule BlockScoutWeb.CrossChainSwapView do
       {"Failed", "failed"}
     ]
   end
+
+  @doc """
+  Formats an address for display (shortened with ellipsis)
+  """
+  def format_address(nil), do: "—"
+
+  def format_address(address) when is_binary(address) do
+    if String.length(address) > 14 do
+      "#{String.slice(address, 0, 8)}…#{String.slice(address, -6, 6)}"
+    else
+      address
+    end
+  end
+
+  def format_address(_), do: "—"
 end

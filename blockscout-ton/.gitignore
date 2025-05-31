@@ -75,3 +75,4 @@ tasks_in_progress
 /dets
 
 /temp
+_mock_server/node_modules
