@@ -6,6 +6,9 @@ import { fileURLToPath } from 'url';
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
 
+import { TonClient } from "@ton/ton";
+import { Address } from "@ton/core";
+
 dotenv.config();
 
 const RPC_URL = process.env.RPC_URL;
@@ -104,6 +107,23 @@ app.get('/weth-balance', async (req, res) => {
   }
 });
 
+
+app.get('/ton-balance', async (req, res) => {
+  const { address } = req.query;
+
+  const client = new TonClient({
+    endpoint: "https://toncenter.com/api/v2/jsonRPC",
+  });
+
+  // Call get method
+  const result = await client.runMethod(
+    Address.parse(address),
+    "get_total"
+  );
+  const total = result.stack.readNumber();
+  console.log("Total:", total);
+  res.json({total})
+});
 
 // Start the server after DB is ready
 initDb().then(() => {
