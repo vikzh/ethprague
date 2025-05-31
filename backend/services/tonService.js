@@ -26,9 +26,32 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
     const toAddress = stack.readBigNumber(); // cell containing a string
     const toAmount = stack.readBigNumber();         // uint64 / uint128
     const hashKey = stack.readBigNumber();         // uint64 / uint128
-    // const resolverAddr = stack.readAddress();       // address
 
-    return {
+    let resolverAddr;
+    try {
+      resolverAddr = stack.readAddress();       // address
+    }
+    catch (error) {
+
+    }
+
+
+    // if no resolver_addr - status created
+    // if resolver_addr and from_amount not 0 - pending
+    // if resolver_addr && from_amount == 0  - completed
+
+    let status;
+    if (!resolverAddr) {
+      status = 'created';
+    } else {
+      if (fromAmount.toString() !== '0') {
+        status = 'pending';
+      } else {
+        status = 'completed';
+      }
+    }
+
+    const order = {
       order_id: orderIdd.toString(),
       from_address: fromAddress.toString(),
       from_amount: fromAmount.toString(),
@@ -36,8 +59,12 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
       to_address: toAddress.toString(),
       to_amount: toAmount.toString(),
       hash_key: hashKey.toString(),
+      status: status,
       // resolver_addr: resolverAddr.toString()
     };
+
+
+    return order
   } catch (err) {
     console.error("Error reading contract:", err);
     res.status(500).json({ error: err.message });
