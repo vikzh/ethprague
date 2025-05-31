@@ -1,6 +1,4 @@
 import express from 'express';
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ethers } from 'ethers';
@@ -8,7 +6,7 @@ import dotenv from 'dotenv';
 import fs from 'fs/promises';
 
 import { TonClient } from "@ton/ton";
-import { Address } from "@ton/core";
+import { Address, beginCell } from "@ton/core";
 
 dotenv.config();
 
@@ -36,22 +34,27 @@ const app = express();
 const port = 3000;
 app.use(express.json());
 
-// Open SQLite database
-const dbPromise = open({
-  filename: path.join(__dirname, 'messages.db'),
-  driver: sqlite3.Database
-});
-
-// Initialize DB table
-const initDb = async () => {
-  const db = await dbPromise;
-  await db.exec(`
-    CREATE TABLE IF NOT EXISTS messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      content TEXT NOT NULL
-    )
-  `);
+// Helper function to read messages from JSON file
+const readMessages = async () => {
+  try {
+    const data = await fs.readFile(path.join(__dirname, 'data/messages.json'), 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading messages:', error);
+    return [];
+  }
 };
+
+// Helper function to write messages to JSON file
+const writeMessages = async (messages) => {
+  try {
+    await fs.writeFile(path.join(__dirname, 'data/messages.json'), JSON.stringify(messages, null, 2));
+  } catch (error) {
+    console.error('Error writing messages:', error);
+    throw error;
+  }
+};
+
 
 // Middleware to parse JSON bodies
 app.use(express.json());
@@ -61,8 +64,8 @@ app.get('/status', (req, res) => {
   res.json({ status: 'Server is running', uptime: process.uptime() });
 });
 
-// POST /echo - stores message in DB
-app.post('/echo', async (req, res) => {
+// POST /echo - stores message in JSON file
+app.post('/add-message', async (req, res) => {
   const { key } = req.body;
   console.log(key);
 
@@ -70,28 +73,62 @@ app.post('/echo', async (req, res) => {
     return res.status(400).json({ error: 'Missing or invalid content field' });
   }
 
-  const db = await dbPromise;
-  await db.run('INSERT INTO messages (content) VALUES (?)', key);
-  res.json({ message: 'Stored successfully' });
+  try {
+    const messages = await readMessages();
+    const newMessage = {
+      id: messages.length > 0 ? messages[messages.length - 1].id + 1 : 1,
+      content: key,
+      timestamp: new Date().toISOString()
+    };
+    messages.push(newMessage);
+    await writeMessages(messages);
+    res.json({ message: 'Stored successfully' });
+  } catch (error) {
+    console.error('Error storing message:', error);
+    res.status(500).json({ error: 'Failed to store message' });
+  }
+});
+
+// DELETE /delete-message - delete message by ID
+app.post('/delete-message', async (req, res) => {
+  console.log(req.body);
+  const { id } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: 'Invalid message ID' });
+  }
+
+  try {
+    const messages = await readMessages();
+    const updatedMessages = messages.filter(msg => msg.id !== id);
+    await writeMessages(updatedMessages);
+    res.redirect('/');
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
 });
 
 // GET /messages - retrieve all stored strings
 app.get('/messages', async (req, res) => {
-  const db = await dbPromise;
-  const rows = await db.all('SELECT * FROM messages');
-  res.json(rows);
+  try {
+    const messages = await readMessages();
+    res.json(messages);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
+  }
 });
 
 // GET /messages-page - serve HTML page with messages
 app.get('/', async (req, res) => {
   try {
-    const db = await dbPromise;
-    const rows = await db.all('SELECT * FROM messages');
+    const messages = await readMessages();
     
     // Create HTML content
-    const messagesHtml = rows.map(msg => `
+    const messagesHtml = messages.map(msg => `
       <div class="message">
-        <div class="message-title">${msg.title}</div>
+        <div class="message-title">Message #${msg.id}</div>
         <div class="message-content">${msg.content}</div>
         <div class="message-timestamp">${new Date(msg.timestamp).toLocaleString()}</div>
       </div>
@@ -136,9 +173,6 @@ app.get('/weth-balance', async (req, res) => {
   }
 });
 
-
-
-
 //------------------------
 //TON endpoints
 //------------------------
@@ -160,37 +194,123 @@ app.get('/ton-balance', async (req, res) => {
   res.json({total})
 });
 
-app.get('/ton-escrow', async (req, res) => {
-  const { address } = req.query;
+const calculateAddress = async (userAddress, orderId) => {
+    console.log(`Calculate address: ${userAddress}, orderId: ${orderId}`);
+    const contractAddress = "kQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOX3s";
 
-  const client = new TonClient({
-    endpoint: "https://toncenter.com/api/v2/jsonRPC",
-  });
+    const client = new TonClient({
+      endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
+    });
 
-  // Call get method
-  const result = await client.runMethod(
-    Address.parse(address),
-    "get_escrow_data"
-  );
+    // Call get method
+    const result = await client.runMethod(
+      Address.parseFriendly(contractAddress).address,
+      "get_order_address",
+      [
+        {
+          type: 'slice',
+          cell: beginCell().storeAddress(Address.parse(userAddress)).endCell(),
+        },
+        {
+          type: 'int',
+          value: orderId,
+        }
+      ]
+    );
 
-  const orderId = result.stack.readNumber();
-  const fromAddress = result.stack.readAddress();
-  const fromAmount = result.stack.readNumber();
+    const stack = result.stack;
+    const fromAddress = stack.readAddress();
+    return fromAddress;
+    // const orderId = stack.readBigNumber();          // uint64 / uint128
+    // const fromAddress = stack.readAddress();        // address
+    // const fromAmount = stack.readBigNumber();       // uint64 / uint128
+    // const toNetwork = stack.readNumber();           // int or enum
+    // const toAddress = stack.readBigNumber(); // cell containing a string
+    // const toAmount = stack.readBigNumber();         // uint64 / uint128
+    // const hashKey = stack.readBigNumber();         // uint64 / uint128
+    // // const resolverAddr = stack.readAddress();       // address
+    //
+    // res.json({
+    //   order_id: orderId.toString(),
+    //   from_address: fromAddress.toString(),
+    //   from_amount: fromAmount.toString(),
+    //   to_network: toNetwork,
+    //   to_address: toAddress.toString(),
+    //   to_amount: toAmount.toString(),
+    //   hash_key: hashKey.toString(),
+    //   // resolver_addr: resolverAddr.toString()
+    // });
+}
 
-  console.log("test:", orderId, fromAddress, fromAmount);
-  res.json({total})
+app.get('/ton-escrow-address', async (req, res) => {
+  const { address, orderId } = req.query;
+
+  try {
+    const calculatedAddress = await calculateAddress(address, orderId);
+    res.json({"address": calculatedAddress.toString()});
+
+  } catch (err) {
+    console.error("Error reading contract:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
+app.get('/ton-escrow', async (req, res) => {
+  const { address, orderId } = req.query;
 
+  try {
+    const calculatedAddress = await calculateAddress(address, orderId);
 
+  } catch (err) {
+    console.error("Error reading contract:", err);
+    res.status(500).json({ error: err.message });
+  }
+
+  try {
+    const contractAddress = calculatedAddress;
+
+    const client = new TonClient({
+      endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
+    });
+
+    // Call get method
+    const result = await client.runMethod(
+      Address.parseFriendly(contractAddress).address,
+      "get_escrow_data"
+    );
+
+    const stack = result.stack;
+
+    const orderId = stack.readBigNumber();          // uint64 / uint128
+    const fromAddress = stack.readAddress();        // address
+    const fromAmount = stack.readBigNumber();       // uint64 / uint128
+    const toNetwork = stack.readNumber();           // int or enum
+    const toAddress = stack.readBigNumber(); // cell containing a string
+    const toAmount = stack.readBigNumber();         // uint64 / uint128
+    const hashKey = stack.readBigNumber();         // uint64 / uint128
+    // const resolverAddr = stack.readAddress();       // address
+
+    res.json({
+      order_id: orderId.toString(),
+      from_address: fromAddress.toString(),
+      from_amount: fromAmount.toString(),
+      to_network: toNetwork,
+      to_address: toAddress.toString(),
+      to_amount: toAmount.toString(),
+      hash_key: hashKey.toString(),
+      // resolver_addr: resolverAddr.toString()
+    });
+
+  } catch (err) {
+    console.error("Error reading contract:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 //-------------------------------
 //
-// Server Start after DB is ready
-//
+// Start the server//
 //-------------------------------
-initDb().then(() => {
-  app.listen(port, () => {
-    console.log(`Server is running at http://localhost:${port}`);
-  });
+app.listen(port, () => {
+  console.log(`Server is running at http://localhost:${port}`);
 });
