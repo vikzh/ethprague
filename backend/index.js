@@ -31,7 +31,7 @@ const __dirname = path.dirname(__filename);
 
 // Initialize Express
 const app = express();
-const port = 3000;
+const port = 8080;
 app.use(express.json());
 
 // Helper function to read messages from JSON file
