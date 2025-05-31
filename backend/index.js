@@ -64,6 +64,79 @@ const writeOrders = async (messages) => {
 };
 
 
+const getExtraDataAboutOrder = async (address, orderId) => {
+  try {
+    const contractAddress = await calculateAddress(address, orderId);
+    console.log('calculated address to get info about order: ',contractAddress);
+
+    const client = new TonClient({
+      endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
+    });
+
+    // Call get method
+    const result = await client.runMethod(
+      contractAddress,
+      "get_escrow_data"
+    );
+
+    const stack = result.stack;
+
+    const orderIdd = stack.readBigNumber();          // uint64 / uint128
+    const fromAddress = stack.readAddress();        // address
+    const fromAmount = stack.readBigNumber();       // uint64 / uint128
+    const toNetwork = stack.readNumber();           // int or enum
+    const toAddress = stack.readBigNumber(); // cell containing a string
+    const toAmount = stack.readBigNumber();         // uint64 / uint128
+    const hashKey = stack.readBigNumber();         // uint64 / uint128
+    // const resolverAddr = stack.readAddress();       // address
+
+    return {
+      order_id: orderIdd.toString(),
+      from_address: fromAddress.toString(),
+      from_amount: fromAmount.toString(),
+      to_network: toNetwork,
+      to_address: toAddress.toString(),
+      to_amount: toAmount.toString(),
+      hash_key: hashKey.toString(),
+      // resolver_addr: resolverAddr.toString()
+    };
+  } catch (err) {
+    console.error("Error reading contract:", err);
+    res.status(500).json({ error: err.message });
+  }
+}
+
+
+
+const calculateAddress = async (userAddress, orderId) => {
+  console.log(`Calculate order address for User: ${userAddress}, orderId: ${orderId}`);
+  const contractAddress = "kQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOX3s";
+
+  const client = new TonClient({
+    endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
+  });
+
+  // Call get method
+  const result = await client.runMethod(
+    Address.parseFriendly(contractAddress).address,
+    "get_order_address",
+    [
+      {
+        type: 'slice',
+        cell: beginCell().storeAddress(Address.parse(userAddress)).endCell(),
+      },
+      {
+        type: 'int',
+        value: orderId,
+      }
+    ]
+  );
+
+  const stack = result.stack;
+  const fromAddress = stack.readAddress();
+  return fromAddress;
+}
+
 
 
 
@@ -90,10 +163,14 @@ app.post('/add-order', async (req, res) => {
 
   try {
     const orders = await readOrders();
+
+    const orderExtraData = await getExtraDataAboutOrder(userAddress, orderId);
+
     const newOrder = {
       orderId,
       userAddress,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      ...orderExtraData
     };
     orders.push(newOrder);
     await writeOrders(orders);
@@ -209,35 +286,6 @@ app.get('/ton-balance', async (req, res) => {
   res.json({total})
 });
 
-const calculateAddress = async (userAddress, orderId) => {
-    console.log(`Calculate order address for User: ${userAddress}, orderId: ${orderId}`);
-    const contractAddress = "kQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOX3s";
-
-    const client = new TonClient({
-      endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-    });
-
-    // Call get method
-    const result = await client.runMethod(
-      Address.parseFriendly(contractAddress).address,
-      "get_order_address",
-      [
-        {
-          type: 'slice',
-          cell: beginCell().storeAddress(Address.parse(userAddress)).endCell(),
-        },
-        {
-          type: 'int',
-          value: orderId,
-        }
-      ]
-    );
-
-    const stack = result.stack;
-    const fromAddress = stack.readAddress();
-    return fromAddress;
-}
-
 app.get('/ton-escrow-address', async (req, res) => {
   const { address, orderId } = req.query;
 
@@ -254,46 +302,11 @@ app.get('/ton-escrow-address', async (req, res) => {
 app.get('/ton-escrow', async (req, res) => {
   const { address, orderId } = req.query;
   console.log(`Request to get order from ton smart contract for UserAddress: ${address}, orderId: ${orderId}`);
-  try {
-    const contractAddress = await calculateAddress(address, orderId);
-    console.log('calculated address to get info about order: ',contractAddress);
 
-    const client = new TonClient({
-      endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
-    });
+  const orderDataJson = await getExtraDataAboutOrder(address, orderId);
 
-    // Call get method
-    const result = await client.runMethod(
-            contractAddress,
-      "get_escrow_data"
-    );
+    res.json(orderDataJson);
 
-    const stack = result.stack;
-
-    const orderIdd = stack.readBigNumber();          // uint64 / uint128
-    const fromAddress = stack.readAddress();        // address
-    const fromAmount = stack.readBigNumber();       // uint64 / uint128
-    const toNetwork = stack.readNumber();           // int or enum
-    const toAddress = stack.readBigNumber(); // cell containing a string
-    const toAmount = stack.readBigNumber();         // uint64 / uint128
-    const hashKey = stack.readBigNumber();         // uint64 / uint128
-    // const resolverAddr = stack.readAddress();       // address
-
-    res.json({
-      order_id: orderIdd.toString(),
-      from_address: fromAddress.toString(),
-      from_amount: fromAmount.toString(),
-      to_network: toNetwork,
-      to_address: toAddress.toString(),
-      to_amount: toAmount.toString(),
-      hash_key: hashKey.toString(),
-      // resolver_addr: resolverAddr.toString()
-    });
-
-  } catch (err) {
-    console.error("Error reading contract:", err);
-    res.status(500).json({ error: err.message });
-  }
 });
 
 //-------------------------------
