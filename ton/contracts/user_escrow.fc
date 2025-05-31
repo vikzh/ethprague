@@ -2,6 +2,7 @@
 #include "imports/op_codes.fc";
 #include "imports/message.fc";
 #include "imports/errors.fc";
+#include "imports/utils.fc";
 
 #pragma version >=0.4.4;
 
@@ -94,9 +95,10 @@ const exec_fee = 30000000;  ;; 0.03 TON
     int op = in_msg_body~load_uint(32);
     int query_id = in_msg_body~load_uint(64);
 
-    if (op == "create_order"c) {
+    if (op == op::create_order) {
         throw_unless(error::forbidden, equal_slice_bits(sender_address, master_contract));
 
+        in_msg_body~load_uint(32); ;; order_id
         int from_amount = in_msg_body~load_coins();
         throw_unless(error::not_enough_ton, msg_value > from_amount + exec_fee);
 
@@ -105,8 +107,35 @@ const exec_fee = 30000000;  ;; 0.03 TON
         int to_amount = in_msg_body~load_uint(128);
         int hash_key = in_msg_body~load_uint(256);
 
-        save_data(owner_address, master_contract, order_id, from_amount, to_network, to_address, to_amount, hash_key, null());
+        save_data(
+            owner_address,
+            master_contract,
+            order_id,
+            from_amount,
+            to_network,
+            to_address,
+            to_amount,
+            hash_key,
+            ""
+        );
         return ();
+    }
+
+    if (op == op::claim_order) {
+        slice new_resolver = sender_address;
+        throw_unless(error::already_claimed, equal_slice_bits(resolver_addr, ""));
+        force_chain(new_resolver);
+
+        ;; save new resolver
+        save_data(owner_address, master_contract, order_id, from_amount, to_network, to_address, to_amount, hash_key, new_resolver);
+        return ();
+    }
+
+    if (op == op::withdraw) {
+        throw_unless(error::forbidden, equal_slice_bits(sender_address, resolver_addr));
+
+        slice secret = in_msg_body~load_bits(256);
+        throw_unless(error::wrong_secret, string_hash(secret) == hash_key);
     }
 
     throw(0xffff);
