@@ -2,25 +2,14 @@
   {
     "orderId": 1,
     "userAddress": "EQCEnDKs7s2_OIuTjb642KbRufqkW47GGCuOosP150ZiGKvm",
-    "timestamp": "2025-05-31T21:44:01.621Z",
+    "timestamp": "2025-05-31T22:14:56.764Z",
     "order_id": "1",
     "from_address": "EQCEnDKs7s2_OIuTjb642KbRufqkW47GGCuOosP150ZiGKvm",
     "from_amount": "0",
     "to_network": 0,
     "to_address": "138195620740243451877984700135538461098697607409202112742225086110498816",
     "to_amount": "2277375790844960561141121024",
-    "hash_key": "627710177966680116931292917747249425385797383767801221094596884259"
-  },
-  {
-    "orderId": 1,
-    "userAddress": "EQCEnDKs7s2_OIuTjb642KbRufqkW47GGCuOosP150ZiGKvm",
-    "timestamp": "2025-05-31T22:00:58.419Z",
-    "order_id": "1",
-    "from_address": "EQCEnDKs7s2_OIuTjb642KbRufqkW47GGCuOosP150ZiGKvm",
-    "from_amount": "0",
-    "to_network": 0,
-    "to_address": "138195620740243451877984700135538461098697607409202112742225086110498816",
-    "to_amount": "2277375790844960561141121024",
-    "hash_key": "627710177966680116931292917747249425385797383767801221094596884259"
+    "hash_key": "627710177966680116931292917747249425385797383767801221094596884259",
+    "status": "created"
   }
 ]
