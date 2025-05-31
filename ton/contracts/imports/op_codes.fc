@@ -1,0 +1,2 @@
+
+const op::create_order = "create_order"c;

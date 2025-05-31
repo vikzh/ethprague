@@ -1,0 +1,129 @@
+#include "imports/stdlib.fc";
+#include "imports/op_codes.fc";
+#include "imports/message.fc";
+#include "imports/errors.fc";
+
+#pragma version >=0.4.4;
+
+const exec_fee = 30000000;  ;; 0.03 TON
+
+(slice, slice, int, int, int, int, int, int, slice) load_data() inline {
+    slice ds = get_data().begin_parse();
+    slice owner_address = ds~load_msg_addr();
+    slice admin_address = ds~load_msg_addr();
+    int order_id = ds~load_uint(32);
+
+    if (ds.slice_empty?()) {
+        return (owner_address, admin_address, order_id, 0, 0, 0, 0, 0, "");
+    }
+
+    int from_amount = ds~load_coins();
+    int to_network = ds~load_uint(8);
+    int to_address = ds~load_uint(256);
+    int to_amount = ds~load_uint(128);
+
+    cell exec_params_cell = ds~load_ref();
+    slice ds_exec_params = exec_params_cell.begin_parse();
+    int hash_key = (~ ds_exec_params.slice_empty?()) ? ds_exec_params~load_uint(256) : 0;
+    slice resolver_addr = (~ ds_exec_params.slice_empty?()) ? ds_exec_params~load_msg_addr() : "";
+
+    return (owner_address, admin_address, order_id, from_amount, to_network, to_address, to_amount, hash_key, resolver_addr);
+}
+
+() save_data(
+    slice owner,
+    slice master_contract,
+    int order_id,
+    int from_amount,
+    int to_network,
+    int to_address,
+    int to_amount,
+    int hash_key,
+    slice resolver_addr
+) impure inline {
+    set_data(begin_cell()
+        .store_slice(owner)
+        .store_slice(master_contract)
+        .store_uint(order_id, 32)
+        .store_coins(from_amount)
+        .store_uint(to_network, 8)
+        .store_uint(to_address, 256)
+        .store_uint(to_amount, 128)
+        .store_ref(
+            begin_cell()
+            .store_uint(hash_key, 256)
+            .store_slice(resolver_addr)
+            .end_cell()
+        )
+        .end_cell());
+}
+
+() send_ton(slice to_address, int amount) impure {
+    cell msg = begin_cell()
+        .store_msg_flag(msg_flag::bounceable)
+        .store_slice(to_address)
+        .store_coins(amount)
+        .store_msgbody_prefix_slice()
+        .end_cell();
+    send_raw_message(msg, PAY_FEES_SEPARATELY);
+}
+
+() recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
+    if (in_msg_body.slice_empty?()) { ;; ignore empty messages
+        return ();
+    }
+    slice cs = in_msg_full.begin_parse();
+    int flags = cs~load_uint(4);
+    if (flags & 1) { ;; ignore all bounced messages
+        return ();
+    }
+    slice sender_address = cs~load_msg_addr();
+
+    (
+        slice owner_address,
+        slice master_contract,
+        int order_id,
+        int from_amount,
+        int to_network,
+        int to_address,
+        int to_amount,
+        int hash_key,
+        slice resolver_addr
+    ) = load_data();
+
+    int op = in_msg_body~load_uint(32);
+    int query_id = in_msg_body~load_uint(64);
+
+    if (op == "create_order"c) {
+        throw_unless(error::forbidden, equal_slice_bits(sender_address, master_contract));
+
+        int from_amount = in_msg_body~load_coins();
+        throw_unless(error::not_enough_ton, msg_value > from_amount + exec_fee);
+
+        int to_network = in_msg_body~load_uint(8);
+        int to_address = in_msg_body~load_uint(256);
+        int to_amount = in_msg_body~load_uint(128);
+        int hash_key = in_msg_body~load_uint(256);
+
+        save_data(owner_address, master_contract, order_id, from_amount, to_network, to_address, to_amount, hash_key, null());
+        return ();
+    }
+
+    throw(0xffff);
+}
+
+(int, slice, int, int, int, int, int, slice) get_escrow_data() method_id {
+    (
+        slice from_address,
+        slice master_contract,
+        int order_id,
+        int from_amount,
+        int to_network,
+        int to_address,
+        int to_amount,
+        int hash_key,
+        slice resolver_addr
+    ) = load_data();
+
+    return (order_id, from_address, from_amount, to_network, to_address, to_amount, hash_key, resolver_addr);
+}
