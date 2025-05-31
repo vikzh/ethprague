@@ -31,17 +31,16 @@ const config: HardhatUserConfig = {
         hardhat: {
             // Local development network
         },
-        // Only include sepolia if environment variables are properly set
-        ...(process.env.SEPOLIA_RPC_URL && process.env.DEPLOYER_PRIVATE_KEY ? {
-            sepolia: {
-                url: process.env.SEPOLIA_RPC_URL,
-                accounts: [
-                    process.env.DEPLOYER_PRIVATE_KEY,
-                    process.env.TAKER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY,
-                    process.env.MAKER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY,
-                ]
-            }
-        } : {})
+        sepolia: {
+            url: process.env.SEPOLIA_URL || "https://sepolia.infura.io/v3/your-infura-key",
+            accounts: process.env.DEPLOYER_PRIVATE_KEY ? [
+                process.env.DEPLOYER_PRIVATE_KEY,
+                process.env.TAKER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY,
+                process.env.MAKER_PRIVATE_KEY || process.env.DEPLOYER_PRIVATE_KEY,
+            ] : [],
+            chainId: 11155111,
+            gasPrice: 20000000000,
+        }
     },
 
     etherscan: {

@@ -185,25 +185,43 @@ async function main() {
     // Test 2: Setup tokens for ERC20 swap
     console.log("\n🪙 Step 2: Setting up ERC20 tokens...");
     
-    // Mint access tokens for both participants
-    await accessToken.mint(taker.address, ethers.parseEther("10"));
-    await accessToken.mint(maker.address, ethers.parseEther("10"));
+    // Check current balances first
+    const takerCurrentTokens = await testToken.balanceOf(taker.address);
+    const deployerTokens = await testToken.balanceOf(deployer.address);
     
-    // IMPORTANT: Taker provides the ERC20 tokens in atomic swap
-    // Taker has ERC20 tokens and wants TON
-    await testToken.mint(taker.address, TOKEN_AMOUNT);
-    console.log("   ✅ Minted", ethers.formatEther(TOKEN_AMOUNT), "test tokens to TAKER");
+    console.log("   - Deployer has:", ethers.formatEther(deployerTokens), "TEST tokens");
+    console.log("   - Taker currently has:", ethers.formatEther(takerCurrentTokens), "TEST tokens");
+    
+    // If taker doesn't have enough tokens, transfer from deployer
+    if (takerCurrentTokens < TOKEN_AMOUNT) {
+      const needed = TOKEN_AMOUNT - takerCurrentTokens;
+      console.log("   - Transferring", ethers.formatEther(needed), "tokens from deployer to taker");
+      await testToken.connect(deployer).transfer(taker.address, needed);
+    }
+    
+    // Mint access tokens for both participants (these are needed for some operations)
+    const takerAccessBalance = await accessToken.balanceOf(taker.address);
+    const makerAccessBalance = await accessToken.balanceOf(maker.address);
+    
+    if (takerAccessBalance < ethers.parseEther("10")) {
+      await accessToken.mint(taker.address, ethers.parseEther("10"));
+    }
+    if (makerAccessBalance < ethers.parseEther("10")) {
+      await accessToken.mint(maker.address, ethers.parseEther("10"));
+    }
+    
+    console.log("   ✅ TAKER now has enough test tokens");
     
     // Taker approves factory to spend their test tokens
     await testToken.connect(taker).approve(await factory.getAddress(), TOKEN_AMOUNT);
     console.log("   ✅ TAKER approved factory to spend test tokens");
     
-    const takerAccessBalance = await accessToken.balanceOf(taker.address);
-    const takerTokenBalance = await testToken.balanceOf(taker.address);
-    const makerAccessBalance = await accessToken.balanceOf(maker.address);
-    console.log("   ✅ Taker access token balance:", ethers.formatEther(takerAccessBalance));
-    console.log("   ✅ Taker test token balance:", ethers.formatEther(takerTokenBalance));
-    console.log("   ✅ Maker access token balance:", ethers.formatEther(makerAccessBalance));
+    const finalTakerAccessBalance = await accessToken.balanceOf(taker.address);
+    const finalTakerTokenBalance = await testToken.balanceOf(taker.address);
+    const finalMakerAccessBalance = await accessToken.balanceOf(maker.address);
+    console.log("   ✅ Taker access token balance:", ethers.formatEther(finalTakerAccessBalance));
+    console.log("   ✅ Taker test token balance:", ethers.formatEther(finalTakerTokenBalance));
+    console.log("   ✅ Maker access token balance:", ethers.formatEther(finalMakerAccessBalance));
 
     // Test 3: Create escrow via factory (ERC20 swap) - TAKER CREATES IT
     console.log("\n🚀 Step 3: TAKER creating ERC20 escrow via factory...");
@@ -222,12 +240,29 @@ async function main() {
     const receipt = await tx.wait();
     console.log("   ✅ Escrow creation tx:", receipt?.hash);
 
-    // Find the escrow address from events
-    const events = await factory.queryFilter(factory.filters.DstEscrowCreated());
-    const latestEvent = events[events.length - 1];
-    const escrowAddress = latestEvent.args.escrow;
+    // Find the escrow address from events in the transaction receipt
+    const logs = receipt?.logs || [];
+    const factoryAddress = await factory.getAddress();
     
-    console.log("   📍 Escrow deployed at:", escrowAddress);
+    // Find the DstEscrowCreated event in the receipt
+    let escrowAddress = "";
+    for (const log of logs) {
+      if (log.address.toLowerCase() === factoryAddress.toLowerCase()) {
+        try {
+          const parsed = factory.interface.parseLog(log);
+          if (parsed?.name === "DstEscrowCreated") {
+            escrowAddress = parsed.args.escrow;
+            break;
+          }
+        } catch (e) {
+          // Skip logs we can't parse
+        }
+      }
+    }
+    
+    if (!escrowAddress) {
+      throw new Error("Could not find escrow address in transaction receipt");
+    }
 
     // Get the actual deployment timestamp from the blockchain
     const block = await ethers.provider.getBlock(receipt!.blockNumber);

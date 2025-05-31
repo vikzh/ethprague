@@ -88,11 +88,68 @@ npx hardhat run scripts/maker_withdraw.ts --network sepolia
 npx hardhat run scripts/taker_withdraw.ts --network sepolia
 ```
 
-### 5. Check Status
+### 5. Check Results
 ```bash
-# View current state and timing
-npx hardhat run scripts/status.ts --network sepolia
+# Verify final atomic swap results
+npx hardhat run scripts/check_balances.ts --network sepolia
 ```
+
+## 🚀 **Live Deployments**
+
+### **Sepolia Testnet (Verified Contracts)**
+
+The TON-EVM atomic swap system is deployed and **fully verified** on Sepolia testnet:
+
+| Contract | Address | Status | Etherscan |
+|----------|---------|---------|-----------|
+| **🏭 EscrowFactory** | `0x969F05a876F3d9A9769B2074E2d0b5c11713F249` | ✅ **VERIFIED** | [📖 View Source](https://sepolia.etherscan.io/address/0x969F05a876F3d9A9769B2074E2d0b5c11713F249#code) |
+| **🔧 EscrowDst Implementation** | `0x435Fc4ABEa769b2c25470Ac35C371A2d28889c65` | ✅ **VERIFIED** | [📖 View Source](https://sepolia.etherscan.io/address/0x435Fc4ABEa769b2c25470Ac35C371A2d28889c65#code) |
+| **🪙 Access Token** | `0x7a30D0B8966a2E96839AcE2a30AC3b74c37C5f77` | 🔗 **DEPLOYED** | [📄 View Contract](https://sepolia.etherscan.io/address/0x7a30D0B8966a2E96839AcE2a30AC3b74c37C5f77) |
+| **🪙 Test Token** | `0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588` | 🔗 **DEPLOYED** | [📄 View Contract](https://sepolia.etherscan.io/address/0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588) |
+
+### **Quick Connect to Sepolia:**
+
+```bash
+# Use existing verified contracts on Sepolia
+SEPOLIA_RPC_URL="https://eth-sepolia.g.alchemy.com/v2/your-api-key"
+ETHERSCAN_API_KEY="your-etherscan-api-key"
+
+# Test the atomic swap immediately:
+npx hardhat run scripts/interact.ts --network sepolia
+```
+
+### **Deployment Configuration:**
+- **Network**: Sepolia Testnet (Chain ID: 11155111)
+- **Creation Fee**: 0.0001 ETH (ultra-low for testing)
+- **Withdrawal Period**: 1 minute (fast testing)
+- **Safety Deposit**: 0.0002 ETH (minimal cost)
+- **Total Cost per Swap**: ~0.0003 ETH (~$0.75)
+
+### **Real Transaction Examples:**
+- **📥 Escrow Creation**: [0xa23ff13...](https://sepolia.etherscan.io/tx/0xa23ff13df1d8a68612bf6c8f677b546795be146a6212199aec287e45b7807026)
+- **✅ Swap Completion**: [0x501545e...](https://sepolia.etherscan.io/tx/0x501545edb5c33df0a33217f86e0eee5a3d072e33e9fec469bda2b6c60eee1ac8)
+
+**🎯 Ready to use!** The contracts are **verified, tested, and production-ready** on Sepolia testnet.
+
+### **Production Scripts:**
+
+The repository includes a **clean, focused script suite** for production use:
+- 📜 **deploy.ts** - Deploy contracts to any network
+- 🎯 **interact.ts** - Taker creates destination escrow
+- 💰 **maker_withdraw.ts** - Maker withdraws tokens using secret  
+- 🏦 **taker_withdraw.ts** - Taker withdraws safety deposit
+- 📊 **check_balances.ts** - Verify atomic swap results
+
+All development/debug scripts have been removed for clarity.
+
+### **Contract Verification:**
+
+All core contracts are **publicly verified** on Etherscan, enabling:
+- 📖 **Full source code visibility**
+- 🔍 **Public security auditing**
+- 💻 **Direct contract interaction via Etherscan**
+- 🤝 **Community trust and adoption**
+- 🔗 **Easy integration for developers**
 
 ## 🔄 **Correct Atomic Swap Flow**
 
@@ -368,3 +425,20 @@ This system enables **universal token swaps** between TON and any EVM chain, sup
 **Get started with ultra-cheap ERC20 swaps today and save 99.997% on testing costs!** 🎉
 
 **💡 At 0.0003 ETH per swap (~$0.75), you can afford to test even on mainnet!**
+
+```bash
+# 1. Deploy contracts (once per network)
+npx hardhat run scripts/deploy.ts --network sepolia
+
+# 2. Taker responds to maker's offer
+npx hardhat run scripts/interact.ts --network sepolia
+
+# 3. Maker withdraws tokens (reveals secret)  
+npx hardhat run scripts/maker_withdraw.ts --network sepolia
+
+# 4. Taker withdraws safety deposit
+npx hardhat run scripts/taker_withdraw.ts --network sepolia
+
+# 5. Verify results
+npx hardhat run scripts/check_balances.ts --network sepolia
+```
