@@ -260,12 +260,6 @@ app.get('/ton-escrow', async (req, res) => {
   try {
     const calculatedAddress = await calculateAddress(address, orderId);
 
-  } catch (err) {
-    console.error("Error reading contract:", err);
-    res.status(500).json({ error: err.message });
-  }
-
-  try {
     const contractAddress = calculatedAddress;
 
     const client = new TonClient({
