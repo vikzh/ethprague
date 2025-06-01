@@ -33,23 +33,6 @@ services:
         RELEASE_VERSION: 8.1.1
     links:
       - db:database
-    environment:
-        ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:8545/
-        ETHEREUM_JSONRPC_TRACE_URL: http://host.docker.internal:8545/
-        ETHEREUM_JSONRPC_WS_URL: ws://host.docker.internal:8545/
-        CHAIN_ID: '1337'
-
-  nft_media_handler:
-    depends_on:
-      - backend
-    extends:
-      file: ./services/nft_media_handler.yml
-      service: nft_media_handler
-    build:
-      context: ..
-      dockerfile: ./docker/Dockerfile
-      args:
-        RELEASE_VERSION: 8.1.1
 
   visualizer:
     extends:
@@ -62,6 +45,11 @@ services:
       service: sig-provider
 
   frontend:
+    build:
+      context: ..
+      dockerfile: ./docker/oldUI.Dockerfile
+      args:
+        RELEASE_VERSION: 8.1.1
     depends_on:
       - backend
     extends:

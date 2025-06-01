@@ -3,7 +3,7 @@ FROM hexpm/elixir:1.17.3-erlang-27.3.4-alpine-3.21.3 AS builder-deps
 WORKDIR /app
 
 RUN apk --no-cache --update add \
-    alpine-sdk gmp-dev automake libtool inotify-tools autoconf python3 file gcompat libstdc++ curl ca-certificates git make
+    alpine-sdk gmp-dev automake libtool inotify-tools autoconf python3 file gcompat libstdc++ curl ca-certificates git make bash
 
 # Cache elixir deps
 COPY mix.exs mix.lock ./
@@ -13,7 +13,7 @@ COPY apps/ethereum_jsonrpc/mix.exs ./apps/ethereum_jsonrpc/
 COPY apps/indexer/mix.exs ./apps/indexer/
 COPY apps/utils/mix.exs ./apps/utils/
 
-ENV MIX_ENV="prod"
+ENV MIX_ENV="dev"
 ENV MIX_HOME=/opt/mix
 RUN mix local.hex --force
 RUN mix do deps.get, local.rebar --force, deps.compile --skip-umbrella-children

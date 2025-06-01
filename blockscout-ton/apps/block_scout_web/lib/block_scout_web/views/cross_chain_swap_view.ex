@@ -216,7 +216,9 @@ defmodule BlockScoutWeb.CrossChainSwapView do
       %{"from_amount" => from_amount} when is_binary(from_amount) ->
         case Decimal.new(from_amount) do
           %Decimal{} = decimal ->
-            formatted_amount = decimal |> Decimal.to_string() |> format_number()
+            # Divide by 10^8 for proper TON display (TON has 8 decimals)
+            adjusted_decimal = Decimal.div(decimal, Decimal.new("100000000"))
+            formatted_amount = adjusted_decimal |> Decimal.to_string() |> format_number()
             "#{formatted_amount} TON"
 
           _ ->
@@ -236,7 +238,8 @@ defmodule BlockScoutWeb.CrossChainSwapView do
       %{"to_amount" => to_amount} when is_binary(to_amount) ->
         case Decimal.new(to_amount) do
           %Decimal{} = decimal ->
-            formatted_amount = decimal |> Decimal.to_string() |> format_number()
+            adjusted_decimal = Decimal.div(decimal, Decimal.new("100000000000000000"))
+            formatted_amount = adjusted_decimal |> Decimal.to_string() |> format_number()
             "#{formatted_amount} TUSDC"
 
           _ ->

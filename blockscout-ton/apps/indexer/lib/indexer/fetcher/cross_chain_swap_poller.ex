@@ -209,8 +209,9 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
           order_data["to_address"]
       end
 
-    # Extract extraParams for escrow information
-    extra_params = order_data["extraParams"] || %{}
+    # Extract escrow information from actual API fields
+    src_escrow = order_data["escrow_contract_address"]
+    dst_escrow = order_data["resolver_addr"]
 
     %{
       order_id: to_string(order_data["order_id"] || order_data["orderId"]),
@@ -238,9 +239,13 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
         # New amount fields
         "from_amount" => order_data["from_amount"],
         "to_amount" => order_data["to_amount"],
-        # Escrow transaction IDs
-        "src_escrow" => extra_params["src_escrow"],
-        "dst_escrow" => extra_params["dst_escrow"]
+        # Escrow information from API response
+        "src_escrow" => src_escrow,
+        "dst_escrow" => dst_escrow,
+        # Additional fields from API
+        "escrow_contract_address" => order_data["escrow_contract_address"],
+        "resolver_addr" => order_data["resolver_addr"],
+        "to_token" => order_data["to_token"]
       }
     }
   end
