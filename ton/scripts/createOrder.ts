@@ -6,14 +6,16 @@ import { ethAddressToBigInt, generateRandomBigInt } from '../wrappers/utils';
 import { keccak256 } from 'js-sha3';
 import { ethers } from 'ethers';
 
-const ESCROW_FACTORY = Address.parse('EQAwfeIet0E_vW9_DDRED_nlqsJ0rgVdniGIdcHzARQWJnxh');
+const ESCROW_FACTORY = Address.parse('EQAU6TikP2x2EX35n1o1EV7TRRYBlUzUCwPmpz7wAt8NI8ei');
+const USDT_ADDRESS = '0x58b9147c2411F97841b0b53c42777De5502D54c8';
 
 export async function run(provider: NetworkProvider, args: string[]) {
     const ui = provider.ui();
 
     const orderId = Number(await ui.input('Enter order id:'));
     const fromAmount = toNano(await ui.input('Enter from TON amount:'));
-    const toToken = await ui.input('Enter to token address in Eth network:');
+    // const toToken = await ui.input('Enter to token address in Eth network:');
+    const toToken = USDT_ADDRESS;
     const toAddress = await ui.input('Enter to address in Eth network:');
     const toAmount = await ui.input('Enter to amount:');
 
@@ -22,6 +24,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     const secret = generateRandomBigInt();
     ui.write(`User secret: ${secret}`);
     const hashKey = ethers.keccak256(ethers.toBeHex(secret));
+    ui.write(`Hash key: ${hashKey}`);
 
     await factorySC.sendCreateOrder(provider.sender(), {
         value: toNano(0.05),
