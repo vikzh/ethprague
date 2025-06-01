@@ -24,10 +24,26 @@
     <%= get_to_amount(@swap) %>
   </td>
   <td class="font-monospace">
-    <%= format_escrow_tx(get_src_escrow(@swap)) %>
+    <% src_escrow = get_src_escrow(@swap) %>
+    <%= if src_escrow != "—" && has_src_escrow_url?(@swap) do %>
+      <a href="<%= src_escrow_url(src_escrow) %>" target="_blank" rel="noopener noreferrer" class="text-primary escrow-link" title="<%= src_escrow %>">
+        <%= format_escrow_tx(src_escrow) %>
+        <i class="fas fa-external-link-alt ml-1" style="font-size: 0.75rem;"></i>
+      </a>
+    <% else %>
+      <%= format_escrow_tx(src_escrow) %>
+    <% end %>
   </td>
   <td class="font-monospace">
-    <%= format_escrow_tx(get_dst_escrow(@swap)) %>
+    <% dst_escrow = get_dst_escrow(@swap) %>
+    <%= if dst_escrow != "—" && has_dst_escrow_url?(@swap) do %>
+      <a href="<%= dst_escrow_url(dst_escrow) %>" target="_blank" rel="noopener noreferrer" class="text-primary escrow-link" title="<%= dst_escrow %>">
+        <%= format_escrow_tx(dst_escrow) %>
+        <i class="fas fa-external-link-alt ml-1" style="font-size: 0.75rem;"></i>
+      </a>
+    <% else %>
+      <%= format_escrow_tx(dst_escrow) %>
+    <% end %>
   </td>
   <td>
     <small data-from-now="<%= @swap.inserted_at %>"></small>
@@ -75,13 +91,29 @@
           <div class="col-6">
             <small class="text-muted d-block">Src Escrow:</small>
             <small class="font-monospace">
-              <%= format_escrow_tx(get_src_escrow(@swap)) %>
+              <% src_escrow = get_src_escrow(@swap) %>
+              <%= if src_escrow != "—" && has_src_escrow_url?(@swap) do %>
+                <a href="<%= src_escrow_url(src_escrow) %>" target="_blank" rel="noopener noreferrer" class="text-primary escrow-link" title="<%= src_escrow %>">
+                  <%= format_escrow_tx(src_escrow) %>
+                  <i class="fas fa-external-link-alt ml-1" style="font-size: 0.75rem;"></i>
+                </a>
+              <% else %>
+                <%= format_escrow_tx(src_escrow) %>
+              <% end %>
             </small>
           </div>
           <div class="col-6">
             <small class="text-muted d-block">Dst Escrow:</small>
             <small class="font-monospace">
-              <%= format_escrow_tx(get_dst_escrow(@swap)) %>
+              <% dst_escrow = get_dst_escrow(@swap) %>
+              <%= if dst_escrow != "—" && has_dst_escrow_url?(@swap) do %>
+                <a href="<%= dst_escrow_url(dst_escrow) %>" target="_blank" rel="noopener noreferrer" class="text-primary escrow-link" title="<%= dst_escrow %>">
+                  <%= format_escrow_tx(dst_escrow) %>
+                  <i class="fas fa-external-link-alt ml-1" style="font-size: 0.75rem;"></i>
+                </a>
+              <% else %>
+                <%= format_escrow_tx(dst_escrow) %>
+              <% end %>
             </small>
           </div>
         </div>
