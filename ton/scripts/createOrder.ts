@@ -2,8 +2,9 @@ import { Address, toNano } from '@ton/core';
 import { NetworkProvider } from '@ton/blueprint';
 import { EscrowFactory } from '../wrappers/EscrowFactory';
 import { createHash, randomBytes } from 'node:crypto';
-import { ethAddressToBigInt } from '../wrappers/utils';
+import { ethAddressToBigInt, generateRandomBigInt } from '../wrappers/utils';
 import { keccak256 } from 'js-sha3';
+import { ethers } from 'ethers';
 
 const ESCROW_FACTORY = Address.parse('EQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOcZm');
 
@@ -17,8 +18,9 @@ export async function run(provider: NetworkProvider, args: string[]) {
 
     const factorySC = provider.open(EscrowFactory.createFromAddress(ESCROW_FACTORY));
 
-    const secret = randomBytes(256).toString('hex');
-    const hashKey = BigInt('0x' + keccak256(secret));
+    const secret = generateRandomBigInt();
+    ui.write(`User secret: ${secret}`);
+    const hashKey = ethers.keccak256(ethers.toBeHex(secret));
 
     await factorySC.sendCreateOrder(provider.sender(), {
         value: toNano(0.05),
@@ -29,7 +31,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
         toToken: ethAddressToBigInt(toToken),
         toAddress: ethAddressToBigInt(toAddress),
         toAmount: BigInt(toAmount),
-        hashKey,
+        hashKey: BigInt(hashKey),
     });
 
     ui.write('Order creation transaction was sent...');

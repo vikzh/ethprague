@@ -27,3 +27,7 @@ export function ethAddressToBigInt(address: string): bigint {
 
     return BigInt(address.toLowerCase());
 }
+
+export function generateRandomBigInt(): bigint {
+    return BigInt(Math.floor(Math.random() * 257));
+}
