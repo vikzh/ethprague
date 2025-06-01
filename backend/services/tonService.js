@@ -23,6 +23,7 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
     const fromAddress = stack.readAddress();        // address
     const fromAmount = stack.readBigNumber();       // uint64 / uint128
     const toNetwork = stack.readNumber();           // int or enum
+    const toToken = stack.readBigNumber(); // cell containing a string
     const toAddress = stack.readBigNumber(); // cell containing a string
     const toAmount = stack.readBigNumber();         // uint64 / uint128
     const hashKey = stack.readBigNumber();         // uint64 / uint128
@@ -57,6 +58,7 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
       from_amount: fromAmount.toString(),
       to_network: toNetwork,
       to_address: toAddress.toString(),
+      to_token: toToken.toString(),
       to_amount: toAmount.toString(),
       hash_key: hashKey.toString(),
       status: status,
@@ -75,7 +77,7 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
 
 export const calculateAddress = async (userAddress, orderId) => {
   console.log(`Calculate order address for User: ${userAddress}, orderId: ${orderId}`);
-  const contractAddress = "kQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOX3s";
+  const contractAddress = "EQAwfeIet0E_vW9_DDRED_nlqsJ0rgVdniGIdcHzARQWJnxh";
 
   const client = new TonClient({
     endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
