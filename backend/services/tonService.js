@@ -80,7 +80,7 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
 
 export const calculateAddress = async (userAddress, orderId) => {
   console.log(`Calculate order address for User: ${userAddress}, orderId: ${orderId}`);
-  const contractAddress = "EQAwfeIet0E_vW9_DDRED_nlqsJ0rgVdniGIdcHzARQWJnxh";
+  const contractAddress = "EQAU6TikP2x2EX35n1o1EV7TRRYBlUzUCwPmpz7wAt8NI8ei";
 
   const client = new TonClient({
     endpoint: "https://testnet.toncenter.com/api/v2/jsonRPC",
