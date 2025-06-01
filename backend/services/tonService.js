@@ -60,6 +60,7 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
       to_amount: toAmount.toString(),
       hash_key: hashKey.toString(),
       status: status,
+      escrow_contract_address: contractAddress.toString(),
       // resolver_addr: resolverAddr.toString()
     };
 
