@@ -36,6 +36,7 @@ const reserve_fee = 1000000;  ;; 0.001 TON
     int from_amount,
     int to_network,
     int to_address,
+    int to_token,
     int to_amount,
     int hash_key
 ) impure {
@@ -54,9 +55,14 @@ const reserve_fee = 1000000;  ;; 0.001 TON
         .store_query_id(query_id)
         .store_uint(order_id, 32)
         .store_coins(from_amount)
-        .store_uint(to_network, 8)
-        .store_uint(to_address, 256)
-        .store_uint(to_amount, 128)
+        .store_ref(
+            begin_cell()
+                .store_uint(to_network, 8)
+                .store_uint(to_token, 256)
+                .store_uint(to_address, 256)
+                .store_uint(to_amount, 128)
+                .end_cell()
+        )
         .store_uint(hash_key, 256)
         .end_cell();
     send_message_with_stateinit(to_contract_address, msg_body, state_init, 0, CARRY_REMAINING_BALANCE);
@@ -83,9 +89,13 @@ const reserve_fee = 1000000;  ;; 0.001 TON
         int from_amount = in_msg_body~load_coins();
         throw_unless(error::not_enough_ton, msg_value > from_amount + exec_fee);
 
-        int to_network = in_msg_body~load_uint(8);
-        int to_address = in_msg_body~load_uint(256);
-        int to_amount = in_msg_body~load_uint(128);
+        cell to_cell = in_msg_body~load_ref();
+        slice ds_to = to_cell.begin_parse();
+        int to_network = ds_to~load_uint(8);
+        int to_address = ds_to~load_uint(256);
+        int to_token = ds_to~load_uint(256);
+        int to_amount = ds_to~load_uint(128);
+
         int hash_key = in_msg_body~load_uint(256);
 
         create_ton_escrow(
@@ -95,6 +105,7 @@ const reserve_fee = 1000000;  ;; 0.001 TON
             order_id,
             from_amount,
             to_network,
+            to_token,
             to_address,
             to_amount,
             hash_key

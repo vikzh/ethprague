@@ -6,6 +6,8 @@ import { EscrowFactory } from '../wrappers/EscrowFactory';
 import { createHash, randomBytes } from 'node:crypto';
 import { Op } from '../wrappers/opcodes';
 import { UserEscrow } from '../wrappers/UserEscrow';
+import { ethAddressToBigInt } from '../wrappers/utils';
+import { keccak256 } from 'js-sha3';
 
 describe('UserOrder', () => {
     let blockchain: Blockchain;
@@ -41,15 +43,16 @@ describe('UserOrder', () => {
     });
 
     it('create a new order successful', async () => {
-        const secret = BigInt('0x' + randomBytes(256).toString('hex'));
-        const hashKey = BigInt('0x' + createHash('sha256').update(secret.toString()).digest('hex'));
+        const secret = randomBytes(256).toString('hex');
+        const hashKey = BigInt('0x' + keccak256(secret));
 
         await createOrder({
             factorySC,
             creator,
             fromAmount: toNano(0.1),
             orderId: 456,
-            toAddress: BigInt(123456789),
+            toToken: ethAddressToBigInt('0x1111111111111111111111111111111111111111'),
+            toAddress: ethAddressToBigInt('0x2222222222222222222222222222222222222222'),
             toAmount: toNano(0.1),
             hashKey: hashKey,
         });
@@ -69,21 +72,23 @@ describe('UserOrder', () => {
         expect(orderData.fromAddress.toString()).toEqual(creator.address.toString());
         expect(orderData.fromAmount).toEqual(toNano(0.1));
         expect(orderData.toNetwork).toEqual(1);
-        expect(orderData.toAddress).toEqual(123456789);
+        expect(orderData.toToken).toEqual(ethAddressToBigInt('0x1111111111111111111111111111111111111111'));
+        expect(orderData.toAddress).toEqual(ethAddressToBigInt('0x2222222222222222222222222222222222222222'));
         expect(orderData.toAmount).toEqual(toNano(0.1));
         expect(orderData.hashKey).toEqual(hashKey);
         expect(orderData.resolverAddress).toEqual('');
     });
 
     it('claim order successful', async () => {
-        const secret = BigInt('0x' + randomBytes(256).toString('hex'));
-        const hashKey = BigInt('0x' + createHash('sha256').update(secret.toString()).digest('hex'));
+        const secret = randomBytes(256).toString('hex');
+        const hashKey = BigInt('0x' + keccak256(secret));
         const orderAddress = await createOrder({
             factorySC,
             creator,
             fromAmount: toNano(0.1),
             orderId: 456,
-            toAddress: BigInt(123456789),
+            toToken: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAddress: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
             toAmount: toNano(0.1),
             hashKey: hashKey,
         });
@@ -119,6 +124,7 @@ async function createOrder(cfg: {
     creator: SandboxContract<TreasuryContract>;
     fromAmount: bigint;
     orderId: 456;
+    toToken: bigint;
     toAddress: bigint;
     toAmount: bigint;
     hashKey: bigint;
@@ -129,6 +135,7 @@ async function createOrder(cfg: {
         orderId: cfg.orderId,
         fromAmount: cfg.fromAmount,
         toNetwork: 1,
+        toToken: cfg.toToken,
         toAddress: cfg.toAddress,
         toAmount: cfg.toAmount,
         hashKey: cfg.hashKey,
