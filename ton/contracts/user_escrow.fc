@@ -69,14 +69,14 @@ const exec_fee = 30000000;  ;; 0.03 TON
         .end_cell());
 }
 
-() send_ton(slice to_address, int amount) impure {
+() send_all_ton(slice to_address) impure {
     cell msg = begin_cell()
         .store_msg_flag(msg_flag::bounceable)
         .store_slice(to_address)
-        .store_coins(amount)
+        .store_coins(0)
         .store_msgbody_prefix_slice()
         .end_cell();
-    send_raw_message(msg, PAY_FEES_SEPARATELY);
+    send_raw_message(msg, CARRY_REMAINING_BALANCE + SELFDESTRUCT_ON_EMPTY);
 }
 
 () recv_internal(int my_balance, int msg_value, cell in_msg_full, slice in_msg_body) impure {
@@ -166,6 +166,9 @@ const exec_fee = 30000000;  ;; 0.03 TON
             .store_uint(secret, 256)
             .hash_keccak256();
         throw_unless(error::wrong_secret, calculated_hash == hash_key);
+
+        send_all_ton(resolver_addr);
+        return ();
     }
 
     throw(0xffff);
