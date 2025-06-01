@@ -79,21 +79,24 @@ export class UserEscrow implements Contract {
     }
 
     async getSecretValid(provider: ContractProvider, secret: bigint) {
-        return await provider.get('get_secret_valid', [
+        const res = await provider.get('get_secret_valid', [
             {
                 type: 'int',
                 value: secret,
             },
         ]);
+
+        return res.stack.readNumber();
     }
 
     async getHash(provider: ContractProvider, secret: bigint) {
-        return await provider.get('get_hash', [
+        const res = await provider.get('get_hash', [
             {
                 type: 'int',
                 value: secret,
             },
         ]);
+        return res.stack.readBigNumber();
     }
 
     readStringOrAddress(stack: TupleReader) {
@@ -103,22 +106,4 @@ export class UserEscrow implements Contract {
             return '';
         }
     }
-
-    // stringToSlice(input: string): Slice {
-    //     const builder = new Builder();
-    //
-    //     // Encode string as UTF-8 bytes
-    //     const utf8encoder = new TextEncoder();
-    //     const bytes = utf8encoder.encode(input);
-    //
-    //     // @ts-ignore
-    //     for (const byte of bytes) {
-    //         builder.storeUint(byte, 8);
-    //     }
-    //
-    //     const cell = builder.endCell();
-    //     const slice = cell.beginParse();
-    //
-    //     return slice;
-    // }
 }
