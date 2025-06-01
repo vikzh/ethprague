@@ -43,8 +43,9 @@ export class EscrowFactory implements Contract {
             orderId: number;
             fromAmount: bigint;
             toNetwork: number;
-            toAddress: number | bigint;
-            toAmount: number | bigint;
+            toToken: bigint;
+            toAddress: bigint;
+            toAmount: bigint;
             hashKey: bigint;
         },
     ) {
@@ -56,9 +57,14 @@ export class EscrowFactory implements Contract {
                 .storeUint(opts.queryId, 64)
                 .storeUint(opts.orderId, 32)
                 .storeCoins(opts.fromAmount)
-                .storeUint(opts.toNetwork, 8)
-                .storeUint(opts.toAddress, 256)
-                .storeUint(opts.toAmount, 128)
+                .storeRef(
+                    beginCell()
+                        .storeUint(opts.toNetwork, 8)
+                        .storeUint(opts.toToken, 256)
+                        .storeUint(opts.toAddress, 256)
+                        .storeUint(opts.toAmount, 128)
+                        .endCell(),
+                )
                 .storeUint(opts.hashKey, 256)
                 .endCell(),
         });

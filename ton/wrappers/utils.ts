@@ -19,3 +19,11 @@ function calcTable() {
         crc32_table[i] = r;
     }
 }
+
+export function ethAddressToBigInt(address: string): bigint {
+    if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+        throw new Error('Invalid Ethereum address format');
+    }
+
+    return BigInt(address.toLowerCase());
+}
