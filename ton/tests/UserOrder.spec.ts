@@ -108,6 +108,38 @@ describe('UserOrder', () => {
         expect(orderData.orderId).toEqual(456);
         expect(orderData.resolverAddress.toString()).toEqual(resolver.address.toString());
     });
+
+    it('check keccak method validity', async () => {
+        const secret = BigInt(1);
+        const ethHash = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
+        const hashKey = BigInt('0x' + keccak256(secret.toString()));
+
+        await createOrder({
+            factorySC,
+            creator,
+            fromAmount: toNano(0.1),
+            orderId: 456,
+            toToken: ethAddressToBigInt('0x1111111111111111111111111111111111111111'),
+            toAddress: ethAddressToBigInt('0x2222222222222222222222222222222222222222'),
+            toAmount: toNano(0.1),
+            hashKey: hashKey,
+        });
+        const orderSC = blockchain.openContract(
+            UserEscrow.createFromConfig(
+                {
+                    owner: creator.address,
+                    admin: factorySC.address,
+                    orderId: 456,
+                },
+                orderCode,
+            ),
+        );
+
+        const tonHash = await orderSC.getHash(secret);
+        expect(tonHash).toEqual(ethHash);
+
+        expect(await orderSC.getSecretValid(secret)).toEqual(-1);
+    });
 });
 
 async function sendMessage(from: SandboxContract<TreasuryContract>, to: Address, value: bigint, body: Cell) {

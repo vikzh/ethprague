@@ -1,12 +1,14 @@
 import {
     Address,
     beginCell,
+    Builder,
     Cell,
     Contract,
     contractAddress,
     ContractProvider,
     Sender,
     SendMode,
+    Slice,
     TupleReader,
 } from '@ton/core';
 
@@ -76,6 +78,24 @@ export class UserEscrow implements Contract {
         };
     }
 
+    async getSecretValid(provider: ContractProvider, secret: bigint) {
+        return await provider.get('get_secret_valid', [
+            {
+                type: 'int',
+                value: secret,
+            },
+        ]);
+    }
+
+    async getHash(provider: ContractProvider, secret: bigint) {
+        return await provider.get('get_hash', [
+            {
+                type: 'int',
+                value: secret,
+            },
+        ]);
+    }
+
     readStringOrAddress(stack: TupleReader) {
         try {
             return stack.readAddress();
@@ -83,4 +103,22 @@ export class UserEscrow implements Contract {
             return '';
         }
     }
+
+    // stringToSlice(input: string): Slice {
+    //     const builder = new Builder();
+    //
+    //     // Encode string as UTF-8 bytes
+    //     const utf8encoder = new TextEncoder();
+    //     const bytes = utf8encoder.encode(input);
+    //
+    //     // @ts-ignore
+    //     for (const byte of bytes) {
+    //         builder.storeUint(byte, 8);
+    //     }
+    //
+    //     const cell = builder.endCell();
+    //     const slice = cell.beginParse();
+    //
+    //     return slice;
+    // }
 }
