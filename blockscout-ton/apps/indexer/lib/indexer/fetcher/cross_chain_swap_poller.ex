@@ -209,6 +209,9 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
           order_data["to_address"]
       end
 
+    # Extract extraParams for escrow information
+    extra_params = order_data["extraParams"] || %{}
+
     %{
       order_id: to_string(order_data["order_id"] || order_data["orderId"]),
       transaction_hash: order_data["hash_key"],
@@ -231,7 +234,13 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
         "to_address_decimal" => order_data["to_address"],
         "to_address_hex" => eth_address,
         # TON address in metadata
-        "from_address" => order_data["from_address"] || order_data["userAddress"]
+        "from_address" => order_data["from_address"] || order_data["userAddress"],
+        # New amount fields
+        "from_amount" => order_data["from_amount"],
+        "to_amount" => order_data["to_amount"],
+        # Escrow transaction IDs
+        "src_escrow" => extra_params["src_escrow"],
+        "dst_escrow" => extra_params["dst_escrow"]
       }
     }
   end
@@ -339,11 +348,29 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
     existing_swaps_map =
       Enum.into(existing_swaps, %{}, fn swap -> {swap.metadata["order_id"], swap} end)
 
-    # Find swaps that actually need status updates
+    # Find swaps that actually need updates (status or metadata changes)
     swaps_to_update =
       Enum.filter(status_updates, fn update ->
         existing_swap = existing_swaps_map[update.order_id]
-        existing_swap && existing_swap.status != update.status
+
+        if existing_swap do
+          # Check if status changed
+          status_changed = existing_swap.status != update.status
+
+          # Check if escrow metadata changed
+          existing_src_escrow = existing_swap.metadata["src_escrow"]
+          existing_dst_escrow = existing_swap.metadata["dst_escrow"]
+          new_src_escrow = update.metadata["src_escrow"]
+          new_dst_escrow = update.metadata["dst_escrow"]
+
+          metadata_changed =
+            existing_src_escrow != new_src_escrow || existing_dst_escrow != new_dst_escrow
+
+          # Update if either status or metadata changed
+          status_changed || metadata_changed
+        else
+          false
+        end
       end)
 
     if length(swaps_to_update) > 0 do
@@ -351,11 +378,12 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
         Enum.map(swaps_to_update, fn update ->
           existing_swap = existing_swaps_map[update.order_id]
 
-          # Update the swap in database
+          # Update the swap in database with both status and metadata
           {:ok, updated_swap} =
             existing_swap
             |> Ecto.Changeset.change(%{
               status: update.status,
+              metadata: update.metadata,
               updated_at: DateTime.utc_now()
             })
             |> Repo.update()
@@ -363,11 +391,11 @@ defmodule Indexer.Fetcher.CrossChainSwapPoller do
           updated_swap
         end)
 
-      Logger.info("Updated status for #{length(updated_swaps)} swaps")
+      Logger.info("Updated #{length(updated_swaps)} swaps (status and/or metadata)")
 
       # Broadcast status updates via WebSocket
       if length(updated_swaps) > 0 do
-        Logger.info("Broadcasting swap status updates via WebSocket")
+        Logger.info("Broadcasting swap updates via WebSocket")
         Publisher.broadcast([{:cross_chain_swaps, updated_swaps}], :realtime)
       end
 

@@ -3,14 +3,17 @@
 // Chain icons
 .chain-icon-ton {
     &::before {
-        content: "⚡";
+        content: "💎" !important;
         color: #0088cc;
+        margin-right: 0.25rem;
+        display: inline-block;
+        font-size: 1rem;
     }
 }
 
 .chain-icon-eth {
     &::before {
-        content: "♦";
+        content: "💠";
         color: #627eea;
     }
 }
@@ -102,13 +105,33 @@
                     font-family: 'SF Mono', Monaco, 'Inconsolata', 'Roboto Mono', monospace;
                     font-size: 0.875rem;
                 }
+
+                // Escrow transaction links
+                .escrow-link {
+                    color: #007bff;
+                    text-decoration: none;
+
+                    &:hover {
+                        color: #0056b3;
+                        text-decoration: underline;
+                    }
+
+                    .fa-external-link-alt {
+                        opacity: 0.7;
+                        transition: opacity 0.2s ease;
+                    }
+
+                    &:hover .fa-external-link-alt {
+                        opacity: 1;
+                    }
+                }
             }
 
             tbody tr {
-                transition: background-color 0.15s ease-in-out;
+                transition: none;
 
                 &:hover {
-                    background-color: #f8f9fa;
+                    background-color: transparent !important;
                 }
             }
         }
@@ -119,10 +142,10 @@
         .card {
             border: 1px solid #dee2e6;
             border-radius: 8px;
-            transition: box-shadow 0.15s ease-in-out;
+            transition: none;
 
             &:hover {
-                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+                box-shadow: none !important;
             }
 
             .card-body {

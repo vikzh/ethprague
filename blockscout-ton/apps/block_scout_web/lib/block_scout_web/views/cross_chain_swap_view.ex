@@ -207,4 +207,127 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   def get_to_address(swap) do
     swap.user_address || "—"
   end
+
+  @doc """
+  Gets the from_amount from metadata and formats it with TON
+  """
+  def get_from_amount(swap) do
+    case swap.metadata do
+      %{"from_amount" => from_amount} when is_binary(from_amount) ->
+        case Decimal.new(from_amount) do
+          %Decimal{} = decimal ->
+            formatted_amount = decimal |> Decimal.to_string() |> format_number()
+            "#{formatted_amount} TON"
+
+          _ ->
+            "— TON"
+        end
+
+      _ ->
+        "— TON"
+    end
+  end
+
+  @doc """
+  Gets the to_amount from metadata and formats it with TUSDC
+  """
+  def get_to_amount(swap) do
+    case swap.metadata do
+      %{"to_amount" => to_amount} when is_binary(to_amount) ->
+        case Decimal.new(to_amount) do
+          %Decimal{} = decimal ->
+            formatted_amount = decimal |> Decimal.to_string() |> format_number()
+            "#{formatted_amount} TUSDC"
+
+          _ ->
+            "— TUSDC"
+        end
+
+      _ ->
+        "— TUSDC"
+    end
+  end
+
+  @doc """
+  Gets the src_escrow (TON transaction ID) from metadata
+  """
+  def get_src_escrow(swap) do
+    case swap.metadata do
+      %{"src_escrow" => src_escrow} when is_binary(src_escrow) and src_escrow != "" -> src_escrow
+      _ -> "—"
+    end
+  end
+
+  @doc """
+  Gets the dst_escrow (ETH transaction ID) from metadata
+  """
+  def get_dst_escrow(swap) do
+    case swap.metadata do
+      %{"dst_escrow" => dst_escrow} when is_binary(dst_escrow) and dst_escrow != "" -> dst_escrow
+      _ -> "—"
+    end
+  end
+
+  @doc """
+  Formats escrow transaction ID for display (shortened with ellipsis)
+  """
+  def format_escrow_tx(nil), do: "—"
+  def format_escrow_tx(""), do: "—"
+  def format_escrow_tx("—"), do: "—"
+
+  def format_escrow_tx(tx_id) when is_binary(tx_id) do
+    if String.length(tx_id) > 20 do
+      "#{String.slice(tx_id, 0, 10)}...#{String.slice(tx_id, -8, 8)}"
+    else
+      tx_id
+    end
+  end
+
+  def format_escrow_tx(tx_id), do: tx_id |> to_string() |> format_escrow_tx()
+
+  @doc """
+  Generates URL for src escrow (TON) transaction using SRC_ESCROW_URL environment variable
+  """
+  def src_escrow_url(tx_id) when is_binary(tx_id) and tx_id != "" and tx_id != "—" do
+    base_url = System.get_env("SRC_ESCROW_URL")
+
+    if base_url do
+      "#{base_url}#{tx_id}"
+    else
+      nil
+    end
+  end
+
+  def src_escrow_url(_), do: nil
+
+  @doc """
+  Generates URL for dst escrow (ETH) transaction using DST_ESCROW_URL environment variable
+  """
+  def dst_escrow_url(tx_id) when is_binary(tx_id) and tx_id != "" and tx_id != "—" do
+    base_url = System.get_env("DST_ESCROW_URL")
+
+    if base_url do
+      "#{base_url}#{tx_id}"
+    else
+      nil
+    end
+  end
+
+  def dst_escrow_url(_), do: nil
+
+  @doc """
+  Checks if src escrow has a valid URL
+  """
+  def has_src_escrow_url?(swap) do
+    src_escrow = get_src_escrow(swap)
+    !is_nil(src_escrow_url(src_escrow))
+  end
+
+  @doc """
+  Checks if dst escrow has a valid URL
+  """
+  def has_dst_escrow_url?(swap) do
+    dst_escrow = get_dst_escrow(swap)
+    !is_nil(dst_escrow_url(dst_escrow))
+  end
 end

@@ -73,10 +73,10 @@
               <tr>
                 <th><%= gettext "Status" %></th>
                 <th><%= gettext "Chain Route" %></th>
-                <th><%= gettext "Amount" %></th>
-                <th><%= gettext "Transaction Hash" %></th>
-                <th><%= gettext "From Address" %></th>
-                <th><%= gettext "To Address" %></th>
+                <th><%= gettext "From Amount" %></th>
+                <th><%= gettext "To Amount" %></th>
+                <th><%= gettext "Src Escrow" %></th>
+                <th><%= gettext "Dst Escrow" %></th>
                 <th><%= gettext "Time" %></th>
               </tr>
             </thead>
@@ -102,22 +102,16 @@
                       </div>
                     </td>
                     <td class="font-weight-bold">
-                      <%= format_amount_with_token(swap.amount, swap.token_symbol) %>
+                      <%= get_from_amount(swap) %>
                     </td>
-                    <td>
-                      <%= link to: cross_chain_swap_path(@conn, :show, swap), class: "text-primary font-monospace" do %>
-                        <%= format_hash(swap.transaction_hash) %>
-                      <% end %>
+                    <td class="font-weight-bold">
+                      <%= get_to_amount(swap) %>
                     </td>
                     <td class="font-monospace">
-                      <%= link to: address_path(@conn, :show, get_from_address(swap)), class: "text-primary", "data-test": "address_hash_link" do %>
-                        <%= format_address(get_from_address(swap)) %>
-                      <% end %>
+                      <%= format_escrow_tx(get_src_escrow(swap)) %>
                     </td>
                     <td class="font-monospace">
-                      <%= link to: address_path(@conn, :show, get_to_address(swap)), class: "text-primary", "data-test": "address_hash_link" do %>
-                        <%= format_address(get_to_address(swap)) %>
-                      <% end %>
+                      <%= format_escrow_tx(get_dst_escrow(swap)) %>
                     </td>
                     <td>
                       <small data-from-now="<%= swap.inserted_at %>"></small>
@@ -162,15 +156,34 @@
 
                   <!-- Amount -->
                   <div class="mb-2">
-                    <strong class="h5"><%= format_amount_with_token(swap.amount, swap.token_symbol) %></strong>
+                    <div class="row">
+                      <div class="col-6">
+                        <small class="text-muted d-block">From Amount:</small>
+                        <strong class="h6"><%= get_from_amount(swap) %></strong>
+                      </div>
+                      <div class="col-6">
+                        <small class="text-muted d-block">To Amount:</small>
+                        <strong class="h6"><%= get_to_amount(swap) %></strong>
+                      </div>
+                    </div>
                   </div>
 
-                  <!-- Transaction Hash -->
+                  <!-- Escrow Transactions -->
                   <div class="mb-2">
-                    <small class="text-muted d-block">Transaction:</small>
-                    <%= link to: cross_chain_swap_path(@conn, :show, swap), class: "text-primary font-monospace" do %>
-                      <%= format_hash(swap.transaction_hash) %>
-                    <% end %>
+                    <div class="row">
+                      <div class="col-6">
+                        <small class="text-muted d-block">Src Escrow:</small>
+                        <small class="font-monospace">
+                          <%= format_escrow_tx(get_src_escrow(swap)) %>
+                        </small>
+                      </div>
+                      <div class="col-6">
+                        <small class="text-muted d-block">Dst Escrow:</small>
+                        <small class="font-monospace">
+                          <%= format_escrow_tx(get_dst_escrow(swap)) %>
+                        </small>
+                      </div>
+                    </div>
                   </div>
 
                   <!-- User Address -->
@@ -216,16 +229,6 @@
 
       <%= render BlockScoutWeb.CommonComponentsView, "_pagination_container.html", position: "bottom", cur_page_number: "1", show_pagination_limit: true, data_next_page_button: true, data_prev_page_button: true %>
 
-    </div>
-  </div>
-
-  <!-- Auto-refresh toggle -->
-  <div class="d-flex justify-content-end mt-3">
-    <div class="form-check form-switch">
-      <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
-      <label class="form-check-label" for="auto-refresh-toggle">
-        <%= gettext "Auto refresh (5s)" %>
-      </label>
     </div>
   </div>
 

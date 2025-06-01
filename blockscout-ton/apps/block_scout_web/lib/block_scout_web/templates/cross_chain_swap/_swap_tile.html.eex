@@ -18,22 +18,16 @@
     </div>
   </td>
   <td class="font-weight-bold">
-    <%= format_amount_with_token(@swap.amount, @swap.token_symbol) %>
+    <%= get_from_amount(@swap) %>
   </td>
-  <td>
-    <%= link to: cross_chain_swap_path(@conn, :show, @swap), class: "text-primary font-monospace" do %>
-      <%= format_hash(@swap.transaction_hash) %>
-    <% end %>
+  <td class="font-weight-bold">
+    <%= get_to_amount(@swap) %>
   </td>
   <td class="font-monospace">
-    <%= link to: address_path(@conn, :show, get_from_address(@swap)), class: "text-primary", "data-test": "address_hash_link" do %>
-      <%= format_address(get_from_address(@swap)) %>
-    <% end %>
+    <%= format_escrow_tx(get_src_escrow(@swap)) %>
   </td>
   <td class="font-monospace">
-    <%= link to: address_path(@conn, :show, get_to_address(@swap)), class: "text-primary", "data-test": "address_hash_link" do %>
-      <%= format_address(get_to_address(@swap)) %>
-    <% end %>
+    <%= format_escrow_tx(get_dst_escrow(@swap)) %>
   </td>
   <td>
     <small data-from-now="<%= @swap.inserted_at %>"></small>
@@ -63,18 +57,37 @@
 
       <!-- Amount -->
       <div class="mb-2">
-        <strong class="h5"><%= format_amount_with_token(@swap.amount, @swap.token_symbol) %></strong>
+        <div class="row">
+          <div class="col-6">
+            <small class="text-muted d-block">From Amount:</small>
+            <strong class="h6"><%= get_from_amount(@swap) %></strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">To Amount:</small>
+            <strong class="h6"><%= get_to_amount(@swap) %></strong>
+          </div>
+        </div>
       </div>
 
-      <!-- Transaction Hash -->
+      <!-- Escrow Transactions -->
       <div class="mb-2">
-        <small class="text-muted d-block">Transaction:</small>
-        <%= link to: cross_chain_swap_path(@conn, :show, @swap), class: "text-primary font-monospace" do %>
-          <%= format_hash(@swap.transaction_hash) %>
-        <% end %>
+        <div class="row">
+          <div class="col-6">
+            <small class="text-muted d-block">Src Escrow:</small>
+            <small class="font-monospace">
+              <%= format_escrow_tx(get_src_escrow(@swap)) %>
+            </small>
+          </div>
+          <div class="col-6">
+            <small class="text-muted d-block">Dst Escrow:</small>
+            <small class="font-monospace">
+              <%= format_escrow_tx(get_dst_escrow(@swap)) %>
+            </small>
+          </div>
+        </div>
       </div>
 
-      <!-- From Address -->
+      <!-- User Address -->
       <div class="mb-2">
         <small class="text-muted d-block">From:</small>
         <div class="font-monospace">
@@ -84,7 +97,7 @@
         </div>
       </div>
 
-      <!-- To Address -->
+      <!-- Destination Address -->
       <div class="mb-2">
         <small class="text-muted d-block">To:</small>
         <div class="font-monospace">
@@ -94,7 +107,7 @@
         </div>
       </div>
 
-      <!-- Footer with time and error -->
+      <!-- Footer with time -->
       <div class="d-flex justify-content-between align-items-center pt-2 border-top">
         <small class="text-muted" data-from-now="<%= @swap.inserted_at %>"></small>
         <%= if @swap.error_message do %>
