@@ -8,6 +8,8 @@ import { Op } from '../wrappers/opcodes';
 import { UserEscrow } from '../wrappers/UserEscrow';
 import { ethAddressToBigInt } from '../wrappers/utils';
 import { keccak256 } from 'js-sha3';
+import { hash } from 'crypto';
+import { ethers } from 'ethers';
 
 describe('UserOrder', () => {
     let blockchain: Blockchain;
@@ -111,8 +113,10 @@ describe('UserOrder', () => {
 
     it('check keccak method validity', async () => {
         const secret = BigInt(1);
-        const ethHash = 0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6;
-        const hashKey = BigInt('0x' + keccak256(secret.toString()));
+        const ethHash = '0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6';
+        const hashKey = ethers.keccak256(ethers.zeroPadValue(ethers.toBeHex(secret), 32));
+
+        expect(ethHash).toEqual(hashKey);
 
         await createOrder({
             factorySC,
@@ -122,7 +126,7 @@ describe('UserOrder', () => {
             toToken: ethAddressToBigInt('0x1111111111111111111111111111111111111111'),
             toAddress: ethAddressToBigInt('0x2222222222222222222222222222222222222222'),
             toAmount: toNano(0.1),
-            hashKey: hashKey,
+            hashKey: BigInt(hashKey),
         });
         const orderSC = blockchain.openContract(
             UserEscrow.createFromConfig(
@@ -136,7 +140,8 @@ describe('UserOrder', () => {
         );
 
         const tonHash = await orderSC.getHash(secret);
-        expect(tonHash).toEqual(ethHash);
+        expect(tonHash).toEqual(BigInt(ethHash));
+        expect(tonHash).toEqual(BigInt(hashKey));
 
         expect(await orderSC.getSecretValid(secret)).toEqual(-1);
     });
