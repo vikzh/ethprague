@@ -14,7 +14,7 @@ defmodule Explorer.Chain.CrossChainSwap do
   @required_attrs ~w(source_chain_name destination_chain_name transaction_hash status)a
   @optional_attrs ~w(amount token_symbol user_address settlement_tx_hash metadata error_message retry_count)a
 
-  @status_values ~w(pending settled failed)
+  @status_values ~w(created pending completed)
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
   typed_schema "cross_chain_swaps" do
@@ -104,7 +104,7 @@ defmodule Explorer.Chain.CrossChainSwap do
   @spec update_status(String.t(), String.t(), map()) ::
           {:ok, __MODULE__.t()} | {:error, Ecto.Changeset.t()}
   def update_status(swap_id, new_status, additional_attrs \\ %{})
-      when new_status in ["pending", "settled", "failed"] do
+      when new_status in ["created", "pending", "completed"] do
     updates =
       additional_attrs
       |> Map.put(:status, new_status)

@@ -4,13 +4,13 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   use Gettext, backend: BlockScoutWeb.Gettext
 
   @doc """
-  Formats the swap status with appropriate styling class
+  Returns CSS class for status badge based on swap status
   """
   def status_badge_class(status) do
     case status do
+      "created" -> "badge-secondary"
       "pending" -> "badge-warning"
-      "settled" -> "badge-success"
-      "failed" -> "badge-danger"
+      "completed" -> "badge-success"
       _ -> "badge-secondary"
     end
   end
@@ -20,9 +20,9 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   """
   def status_text(status) do
     case status do
+      "created" -> gettext("Created")
       "pending" -> gettext("Pending")
-      "settled" -> gettext("Settled")
-      "failed" -> gettext("Failed")
+      "completed" -> gettext("Completed")
       _ -> String.capitalize(status)
     end
   end
@@ -128,9 +128,9 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   def has_error?(swap), do: not is_nil(swap.error_message)
 
   @doc """
-  Returns whether the swap is settled
+  Returns whether the swap is completed
   """
-  def settled?(swap), do: swap.status == "settled"
+  def completed?(swap), do: swap.status == "completed"
 
   @doc """
   Returns whether the swap has settlement transaction
@@ -156,7 +156,8 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   """
   def success_rate(stats) do
     if stats.total_swaps > 0 do
-      rate = (stats.settled_swaps / stats.total_swaps * 100) |> Float.round(1)
+      completed_swaps = stats[:completed_swaps] || 0
+      rate = (completed_swaps / stats.total_swaps * 100) |> Float.round(1)
       "#{rate}%"
     else
       "0%"
@@ -169,9 +170,9 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   def filter_options do
     [
       {"All", "all"},
+      {"Created", "created"},
       {"Pending", "pending"},
-      {"Settled", "settled"},
-      {"Failed", "failed"}
+      {"Completed", "completed"}
     ]
   end
 
@@ -189,4 +190,21 @@ defmodule BlockScoutWeb.CrossChainSwapView do
   end
 
   def format_address(_), do: "—"
+
+  @doc """
+  Gets the from_address (TON address) from metadata
+  """
+  def get_from_address(swap) do
+    case swap.metadata do
+      %{"from_address" => from_address} when is_binary(from_address) -> from_address
+      _ -> "—"
+    end
+  end
+
+  @doc """
+  Gets the to_address (ETH address) which is stored in user_address field
+  """
+  def get_to_address(swap) do
+    swap.user_address || "—"
+  end
 end

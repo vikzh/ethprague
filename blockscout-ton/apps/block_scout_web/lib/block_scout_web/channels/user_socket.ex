@@ -4,6 +4,7 @@ defmodule BlockScoutWeb.UserSocket do
 
   channel("addresses_old:*", BlockScoutWeb.AddressChannel)
   channel("blocks_old:*", BlockScoutWeb.BlockChannel)
+  channel("cross_chain_swaps:*", BlockScoutWeb.CrossChainSwapChannel)
   channel("exchange_rate_old:*", BlockScoutWeb.ExchangeRateChannel)
   channel("rewards_old:*", BlockScoutWeb.RewardChannel)
   channel("transactions_old:*", BlockScoutWeb.TransactionChannel)

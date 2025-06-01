@@ -26,8 +26,13 @@
     <% end %>
   </td>
   <td class="font-monospace">
-    <%= link to: address_path(@conn, :show, @swap.user_address), class: "text-primary", "data-test": "address_hash_link" do %>
-      <%= format_address(@swap.user_address) %>
+    <%= link to: address_path(@conn, :show, get_from_address(@swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+      <%= format_address(get_from_address(@swap)) %>
+    <% end %>
+  </td>
+  <td class="font-monospace">
+    <%= link to: address_path(@conn, :show, get_to_address(@swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+      <%= format_address(get_to_address(@swap)) %>
     <% end %>
   </td>
   <td>
@@ -69,12 +74,22 @@
         <% end %>
       </div>
 
-      <!-- User Address -->
+      <!-- From Address -->
       <div class="mb-2">
-        <small class="text-muted d-block">User:</small>
+        <small class="text-muted d-block">From:</small>
         <div class="font-monospace">
-          <%= link to: address_path(@conn, :show, @swap.user_address), class: "text-primary", "data-test": "address_hash_link" do %>
-            <%= @swap.user_address %>
+          <%= link to: address_path(@conn, :show, get_from_address(@swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+            <%= format_address(get_from_address(@swap)) %>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- To Address -->
+      <div class="mb-2">
+        <small class="text-muted d-block">To:</small>
+        <div class="font-monospace">
+          <%= link to: address_path(@conn, :show, get_to_address(@swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+            <%= format_address(get_to_address(@swap)) %>
           <% end %>
         </div>
       </div>

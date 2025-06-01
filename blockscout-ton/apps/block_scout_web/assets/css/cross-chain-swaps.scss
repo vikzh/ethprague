@@ -166,6 +166,52 @@
             transform: rotate(360deg);
         }
     }
+
+    // New swap highlight animation
+    .swap-new-highlight {
+        animation: newSwapHighlight 2s ease-out;
+        background-color: rgba(40, 167, 69, 0.1) !important;
+        border-left: 4px solid #28a745 !important;
+    }
+
+    @keyframes newSwapHighlight {
+        0% {
+            background-color: rgba(40, 167, 69, 0.3);
+            transform: scale(1.02);
+        }
+
+        50% {
+            background-color: rgba(40, 167, 69, 0.2);
+        }
+
+        100% {
+            background-color: rgba(40, 167, 69, 0.1);
+            transform: scale(1);
+        }
+    }
+
+    // Status update animation
+    .swap-status-update {
+        animation: statusUpdate 1.5s ease-out;
+        background-color: rgba(0, 123, 255, 0.1) !important;
+        border-left: 4px solid #007bff !important;
+    }
+
+    @keyframes statusUpdate {
+        0% {
+            background-color: rgba(0, 123, 255, 0.3);
+            transform: scale(1.01);
+        }
+
+        50% {
+            background-color: rgba(0, 123, 255, 0.2);
+        }
+
+        100% {
+            background-color: rgba(0, 123, 255, 0.1);
+            transform: scale(1);
+        }
+    }
 }
 
 // Individual swap page styles
@@ -335,6 +381,11 @@
 }
 
 // Status badge variants
+.badge-secondary {
+    background-color: #6c757d;
+    color: #fff;
+}
+
 .badge-warning {
     background-color: #ffc107;
     color: #212529;
@@ -350,9 +401,23 @@
     color: #fff;
 }
 
-.badge-secondary {
-    background-color: #6c757d;
-    color: #fff;
+// Status-specific enhancements
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+
+    // Status icons for better UX
+    &.badge-secondary::before {
+        content: "⏳ "; // Created
+    }
+
+    &.badge-warning::before {
+        content: "🔄 "; // Pending
+    }
+
+    &.badge-success::before {
+        content: "✅ "; // Completed
+    }
 }
 
 // Responsive design improvements

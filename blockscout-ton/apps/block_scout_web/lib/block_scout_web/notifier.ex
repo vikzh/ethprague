@@ -46,7 +46,8 @@ defmodule BlockScoutWeb.Notifier do
   alias Phoenix.View
   alias Timex.Duration
 
-  import Explorer.Chain.SmartContract.Proxy.Models.Implementation, only: [proxy_implementations_association: 0]
+  import Explorer.Chain.SmartContract.Proxy.Models.Implementation,
+    only: [proxy_implementations_association: 0]
 
   @check_broadcast_sequence_period 500
   @api_true [api?: true]
@@ -73,7 +74,12 @@ defmodule BlockScoutWeb.Notifier do
   end
 
   @transaction_associations [
-                              from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()],
+                              from_address: [
+                                :scam_badge,
+                                :names,
+                                :smart_contract,
+                                proxy_implementations_association()
+                              ],
                               to_address: [
                                 :scam_badge,
                                 :names,
@@ -89,13 +95,16 @@ defmodule BlockScoutWeb.Notifier do
                             ] ++
                               @chain_type_transaction_associations
 
-  def handle_event({:chain_event, :addresses, type, addresses}) when type in [:realtime, :on_demand] do
+  def handle_event({:chain_event, :addresses, type, addresses})
+      when type in [:realtime, :on_demand] do
     # TODO: delete duplicated event when old UI becomes deprecated
     Endpoint.broadcast("addresses_old:new_address", "count", %{count: AddressesCount.fetch()})
     Endpoint.broadcast("addresses:new_address", "count", %{count: AddressesCount.fetch()})
 
     addresses
-    |> Stream.reject(fn %Address{fetched_coin_balance: fetched_coin_balance} -> is_nil(fetched_coin_balance) end)
+    |> Stream.reject(fn %Address{fetched_coin_balance: fetched_coin_balance} ->
+      is_nil(fetched_coin_balance)
+    end)
     |> Enum.each(&broadcast_balance/1)
   end
 
@@ -110,7 +119,8 @@ defmodule BlockScoutWeb.Notifier do
   end
 
   def handle_event(
-        {:chain_event, :contract_verification_result, :on_demand, {address_hash, contract_verification_result}}
+        {:chain_event, :contract_verification_result, :on_demand,
+         {address_hash, contract_verification_result}}
       ) do
     log_broadcast_verification_results_for_address(address_hash)
     v2_params = verification_result_params_v2(contract_verification_result)
@@ -128,7 +138,8 @@ defmodule BlockScoutWeb.Notifier do
   end
 
   def handle_event(
-        {:chain_event, :contract_verification_result, :on_demand, {address_hash, contract_verification_result, conn}}
+        {:chain_event, :contract_verification_result, :on_demand,
+         {address_hash, contract_verification_result, conn}}
       ) do
     log_broadcast_verification_results_for_address(address_hash)
     %{view: view, compiler: compiler} = select_contract_type_and_form_view(conn.params)
@@ -188,11 +199,16 @@ defmodule BlockScoutWeb.Notifier do
     batches
     |> Enum.sort_by(& &1.number, :asc)
     |> Enum.each(fn confirmed_batch ->
-      rendered_batch = PolygonZkevmView.render("zkevm_batch.json", %{batch: confirmed_batch, socket: nil})
+      rendered_batch =
+        PolygonZkevmView.render("zkevm_batch.json", %{batch: confirmed_batch, socket: nil})
 
-      Endpoint.broadcast("zkevm_batches:new_zkevm_confirmed_batch", "new_zkevm_confirmed_batch", %{
-        batch: rendered_batch
-      })
+      Endpoint.broadcast(
+        "zkevm_batches:new_zkevm_confirmed_batch",
+        "new_zkevm_confirmed_batch",
+        %{
+          batch: rendered_batch
+        }
+      )
     end)
   end
 
@@ -234,12 +250,16 @@ defmodule BlockScoutWeb.Notifier do
          [%InternalTransaction{index: 0, transaction_hash: transaction_hash}]}
       ) do
     # TODO: delete duplicated event when old UI becomes deprecated
-    Endpoint.broadcast("transactions_old:#{transaction_hash}", "raw_trace", %{raw_trace_origin: transaction_hash})
+    Endpoint.broadcast("transactions_old:#{transaction_hash}", "raw_trace", %{
+      raw_trace_origin: transaction_hash
+    })
 
-    internal_transactions = InternalTransaction.all_transaction_to_internal_transactions(transaction_hash)
+    internal_transactions =
+      InternalTransaction.all_transaction_to_internal_transactions(transaction_hash)
 
     v2_params = %{
-      raw_trace: TransactionView.render("raw_trace.json", %{internal_transactions: internal_transactions})
+      raw_trace:
+        TransactionView.render("raw_trace.json", %{internal_transactions: internal_transactions})
     }
 
     Endpoint.broadcast("transactions:#{transaction_hash}", "raw_trace", v2_params)
@@ -279,7 +299,10 @@ defmodule BlockScoutWeb.Notifier do
       )
       |> Instance.preload_nft(@api_true)
 
-    transfers_by_token = Enum.group_by(all_token_transfers_full, fn tt -> to_string(tt.token_contract_address_hash) end)
+    transfers_by_token =
+      Enum.group_by(all_token_transfers_full, fn tt ->
+        to_string(tt.token_contract_address_hash)
+      end)
 
     broadcast_token_transfers_websocket_v2(all_token_transfers_full, transfers_by_token)
 
@@ -298,7 +321,12 @@ defmodule BlockScoutWeb.Notifier do
   def handle_event({:chain_event, :transactions, :realtime, transactions}) do
     base_preloads = [
       :block,
-      created_contract_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()],
+      created_contract_address: [
+        :scam_badge,
+        :names,
+        :smart_contract,
+        proxy_implementations_association()
+      ],
       from_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()],
       to_address: [:scam_badge, :names, :smart_contract, proxy_implementations_association()]
     ]
@@ -315,11 +343,20 @@ defmodule BlockScoutWeb.Notifier do
     |> Enum.each(&broadcast_transaction/1)
   end
 
+  def handle_event({:chain_event, :cross_chain_swaps, :realtime, swaps}) do
+    swaps
+    |> Enum.each(&broadcast_cross_chain_swap/1)
+  end
+
   def handle_event({:chain_event, :transaction_stats}) do
     today = Date.utc_today()
 
     [{:history_size, history_size}] =
-      Application.get_env(:block_scout_web, BlockScoutWeb.Chain.TransactionHistoryChartController, {:history_size, 30})
+      Application.get_env(
+        :block_scout_web,
+        BlockScoutWeb.Chain.TransactionHistoryChartController,
+        {:history_size, 30}
+      )
 
     x_days_back = Date.add(today, -1 * history_size)
 
@@ -331,18 +368,27 @@ defmodule BlockScoutWeb.Notifier do
 
   def handle_event(
         {:chain_event, :token_total_supply, :on_demand,
-         [%Explorer.Chain.Token{contract_address_hash: contract_address_hash, total_supply: total_supply} = token]}
+         [
+           %Explorer.Chain.Token{
+             contract_address_hash: contract_address_hash,
+             total_supply: total_supply
+           } = token
+         ]}
       )
       when not is_nil(total_supply) do
     # TODO: delete duplicated event when old UI becomes deprecated
-    Endpoint.broadcast("tokens_old:#{to_string(contract_address_hash)}", "token_total_supply", %{token: token})
+    Endpoint.broadcast("tokens_old:#{to_string(contract_address_hash)}", "token_total_supply", %{
+      token: token
+    })
 
     Endpoint.broadcast("tokens:#{to_string(contract_address_hash)}", "total_supply", %{
       total_supply: to_string(total_supply)
     })
   end
 
-  def handle_event({:chain_event, :fetched_bytecode, :on_demand, [address_hash, fetched_bytecode]}) do
+  def handle_event(
+        {:chain_event, :fetched_bytecode, :on_demand, [address_hash, fetched_bytecode]}
+      ) do
     # TODO: delete duplicated event when old UI becomes deprecated
     Endpoint.broadcast("addresses_old:#{to_string(address_hash)}", "fetched_bytecode", %{
       fetched_bytecode: fetched_bytecode
@@ -381,20 +427,29 @@ defmodule BlockScoutWeb.Notifier do
     Endpoint.broadcast("addresses:#{to_string(address_hash)}", "changed_bytecode", %{})
   end
 
-  def handle_event({:chain_event, :smart_contract_was_verified = event, :on_demand, [address_hash]}) do
+  def handle_event(
+        {:chain_event, :smart_contract_was_verified = event, :on_demand, [address_hash]}
+      ) do
     broadcast_automatic_verification_events(event, address_hash)
   end
 
-  def handle_event({:chain_event, :smart_contract_was_not_verified = event, :on_demand, [address_hash]}) do
+  def handle_event(
+        {:chain_event, :smart_contract_was_not_verified = event, :on_demand, [address_hash]}
+      ) do
     broadcast_automatic_verification_events(event, address_hash)
   end
 
-  def handle_event({:chain_event, :eth_bytecode_db_lookup_started = event, :on_demand, [address_hash]}) do
+  def handle_event(
+        {:chain_event, :eth_bytecode_db_lookup_started = event, :on_demand, [address_hash]}
+      ) do
     broadcast_automatic_verification_events(event, address_hash)
   end
 
   @current_token_balances_limit 50
-  def handle_event({:chain_event, :address_current_token_balances, :on_demand, address_current_token_balances}) do
+  def handle_event(
+        {:chain_event, :address_current_token_balances, :on_demand,
+         address_current_token_balances}
+      ) do
     address_current_token_balances.address_current_token_balances
     |> Enum.group_by(& &1.token_type)
     |> Enum.each(fn {token_type, balances} ->
@@ -404,14 +459,16 @@ defmodule BlockScoutWeb.Notifier do
 
   case @chain_type do
     :arbitrum ->
-      def handle_event({:chain_event, topic, _, _} = event) when topic in @chain_type_specific_events,
-        # credo:disable-for-next-line Credo.Check.Design.AliasUsage
-        do: BlockScoutWeb.Notifiers.Arbitrum.handle_event(event)
+      def handle_event({:chain_event, topic, _, _} = event)
+          when topic in @chain_type_specific_events,
+          # credo:disable-for-next-line Credo.Check.Design.AliasUsage
+          do: BlockScoutWeb.Notifiers.Arbitrum.handle_event(event)
 
     :optimism ->
-      def handle_event({:chain_event, topic, _, _} = event) when topic in @chain_type_specific_events,
-        # credo:disable-for-next-line Credo.Check.Design.AliasUsage
-        do: BlockScoutWeb.Notifiers.Optimism.handle_event(event)
+      def handle_event({:chain_event, topic, _, _} = event)
+          when topic in @chain_type_specific_events,
+          # credo:disable-for-next-line Credo.Check.Design.AliasUsage
+          do: BlockScoutWeb.Notifiers.Optimism.handle_event(event)
 
     _ ->
       nil
@@ -445,11 +502,20 @@ defmodule BlockScoutWeb.Notifier do
 
     view =
       cond do
-        verification_from_standard_json_input? -> AddressContractVerificationViaStandardJsonInputView
-        verification_from_metadata_json? -> AddressContractVerificationViaJsonView
-        verification_from_vyper? -> AddressContractVerificationVyperView
-        verification_from_multi_part_files? -> AddressContractVerificationViaMultiPartFilesView
-        true -> AddressContractVerificationViaFlattenedCodeView
+        verification_from_standard_json_input? ->
+          AddressContractVerificationViaStandardJsonInputView
+
+        verification_from_metadata_json? ->
+          AddressContractVerificationViaJsonView
+
+        verification_from_vyper? ->
+          AddressContractVerificationVyperView
+
+        verification_from_multi_part_files? ->
+          AddressContractVerificationViaMultiPartFilesView
+
+        true ->
+          AddressContractVerificationViaFlattenedCodeView
       end
 
     %{view: view, compiler: compiler}
@@ -462,10 +528,15 @@ defmodule BlockScoutWeb.Notifier do
         fn ctb ->
           value =
             if ctb.token.decimals,
-              do: Decimal.div(ctb.value, Decimal.new(Integer.pow(10, Decimal.to_integer(ctb.token.decimals)))),
+              do:
+                Decimal.div(
+                  ctb.value,
+                  Decimal.new(Integer.pow(10, Decimal.to_integer(ctb.token.decimals)))
+                ),
               else: ctb.value
 
-          {(ctb.token.fiat_value && Decimal.mult(value, ctb.token.fiat_value)) || Decimal.new(0), value}
+          {(ctb.token.fiat_value && Decimal.mult(value, ctb.token.fiat_value)) || Decimal.new(0),
+           value}
         end,
         fn {fiat_value_1, value_1}, {fiat_value_2, value_2} ->
           case {Decimal.compare(fiat_value_1, fiat_value_2), Decimal.compare(value_1, value_2)} do
@@ -559,7 +630,8 @@ defmodule BlockScoutWeb.Notifier do
     })
 
     if coin_balance.value && coin_balance.delta do
-      rendered_coin_balance = AddressView.render("coin_balance.json", %{coin_balance: coin_balance})
+      rendered_coin_balance =
+        AddressView.render("coin_balance.json", %{coin_balance: coin_balance})
 
       Endpoint.broadcast("addresses:#{address_hash}", "coin_balance", %{
         coin_balance: rendered_coin_balance
@@ -642,7 +714,9 @@ defmodule BlockScoutWeb.Notifier do
 
   defp broadcast_rewards(rewards) do
     preloaded_rewards = Repo.preload(rewards, [:address, :block])
-    emission_reward = Enum.find(preloaded_rewards, fn reward -> reward.address_type == :emission_funds end)
+
+    emission_reward =
+      Enum.find(preloaded_rewards, fn reward -> reward.address_type == :emission_funds end)
 
     preloaded_rewards_except_emission =
       Enum.reject(preloaded_rewards, fn reward -> reward.address_type == :emission_funds end)
@@ -659,16 +733,24 @@ defmodule BlockScoutWeb.Notifier do
   end
 
   defp broadcast_internal_transaction(internal_transaction) do
-    Endpoint.broadcast("addresses_old:#{internal_transaction.from_address_hash}", "internal_transaction", %{
-      address: internal_transaction.from_address,
-      internal_transaction: internal_transaction
-    })
+    Endpoint.broadcast(
+      "addresses_old:#{internal_transaction.from_address_hash}",
+      "internal_transaction",
+      %{
+        address: internal_transaction.from_address,
+        internal_transaction: internal_transaction
+      }
+    )
 
     if internal_transaction.to_address_hash != internal_transaction.from_address_hash do
-      Endpoint.broadcast("addresses_old:#{internal_transaction.to_address_hash}", "internal_transaction", %{
-        address: internal_transaction.to_address,
-        internal_transaction: internal_transaction
-      })
+      Endpoint.broadcast(
+        "addresses_old:#{internal_transaction.to_address_hash}",
+        "internal_transaction",
+        %{
+          address: internal_transaction.to_address,
+          internal_transaction: internal_transaction
+        }
+      )
     end
   end
 
@@ -691,7 +773,11 @@ defmodule BlockScoutWeb.Notifier do
       "pending_transaction"
     )
 
-    broadcast_transactions_websocket_v2_inner(validated_transactions, "transactions:new_transaction", "transaction")
+    broadcast_transactions_websocket_v2_inner(
+      validated_transactions,
+      "transactions:new_transaction",
+      "transaction"
+    )
 
     transactions
   end
@@ -714,7 +800,11 @@ defmodule BlockScoutWeb.Notifier do
   end
 
   defp broadcast_transaction(%Transaction{block_number: nil} = pending) do
-    broadcast_transaction(pending, "transactions_old:new_pending_transaction", "pending_transaction")
+    broadcast_transaction(
+      pending,
+      "transactions_old:new_pending_transaction",
+      "pending_transaction"
+    )
   end
 
   defp broadcast_transaction(transaction) do
@@ -755,7 +845,12 @@ defmodule BlockScoutWeb.Notifier do
       })
     end
 
-    group_by_address_hashes_and_broadcast(tokens_transfers, "token_transfer", :token_transfers, v2_params_function)
+    group_by_address_hashes_and_broadcast(
+      tokens_transfers,
+      "token_transfer",
+      :token_transfers,
+      v2_params_function
+    )
   end
 
   defp broadcast_token_transfer(token_transfer) do
@@ -793,7 +888,9 @@ defmodule BlockScoutWeb.Notifier do
     grouped = Map.merge(grouped_by_to, grouped_by_from, fn _k, v1, v2 -> Enum.uniq(v1 ++ v2) end)
 
     for {address_hash, elements} <- grouped do
-      Endpoint.broadcast("addresses:#{address_hash}", event, %{map_key => params_function.(elements)})
+      Endpoint.broadcast("addresses:#{address_hash}", event, %{
+        map_key => params_function.(elements)
+      })
     end
   end
 
@@ -810,5 +907,11 @@ defmodule BlockScoutWeb.Notifier do
     # TODO: delete duplicated event when old UI becomes deprecated
     Endpoint.broadcast("addresses_old:#{to_string(address_hash)}", to_string(event), %{})
     Endpoint.broadcast("addresses:#{to_string(address_hash)}", to_string(event), %{})
+  end
+
+  defp broadcast_cross_chain_swap(swap) do
+    Endpoint.broadcast("cross_chain_swaps:new_swap", "swap", %{
+      swap: swap
+    })
   end
 end

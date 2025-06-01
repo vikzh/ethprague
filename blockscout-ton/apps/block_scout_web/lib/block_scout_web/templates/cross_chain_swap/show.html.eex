@@ -67,11 +67,21 @@
                   </td>
                 </tr>
                 <tr>
-                  <td class="text-muted"><%= gettext "User Address:" %></td>
+                  <td class="text-muted"><%= gettext "From Address:" %></td>
                   <td class="font-monospace">
                     <%= render BlockScoutWeb.AddressView,
                       "_link.html",
-                      address: @swap.user_address,
+                      address: get_from_address(@swap),
+                      contract: false,
+                      use_custom_tooltip: false %>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="text-muted"><%= gettext "To Address:" %></td>
+                  <td class="font-monospace">
+                    <%= render BlockScoutWeb.AddressView,
+                      "_link.html",
+                      address: get_to_address(@swap),
                       contract: false,
                       use_custom_tooltip: false %>
                   </td>
@@ -171,9 +181,9 @@
                 <div class="timeline-content">
                   <h6 class="timeline-title">
                     <%= case @swap.status do %>
+                      <% "created" -> %><%= gettext "Swap Created" %>
                       <% "pending" -> %><%= gettext "Processing" %>
-                      <% "settled" -> %><%= gettext "Successfully Settled" %>
-                      <% "failed" -> %><%= gettext "Failed" %>
+                      <% "completed" -> %><%= gettext "Successfully Completed" %>
                       <% _ -> %><%= String.capitalize(@swap.status) %>
                     <% end %>
                   </h6>
@@ -187,7 +197,7 @@
               </div>
 
               <!-- Settlement (if completed) -->
-              <%= if settled?(@swap) do %>
+              <%= if completed?(@swap) do %>
                 <div class="timeline-item">
                   <div class="timeline-marker bg-success"></div>
                   <div class="timeline-content">

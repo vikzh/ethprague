@@ -17,16 +17,8 @@
             <span class="font-weight-bold text-warning" data-selector="pending-swaps"><%= @stats.pending_swaps %></span>
           </div>
           <div class="d-flex flex-column text-center">
-            <span class="text-muted small"><%= gettext "Settled" %></span>
-            <span class="font-weight-bold text-success" data-selector="settled-swaps"><%= @stats.settled_swaps %></span>
-          </div>
-          <div class="d-flex flex-column text-center">
-            <span class="text-muted small"><%= gettext "Failed" %></span>
-            <span class="font-weight-bold text-danger" data-selector="failed-swaps"><%= @stats.failed_swaps %></span>
-          </div>
-          <div class="d-flex flex-column text-center">
-            <span class="text-muted small"><%= gettext "Success Rate" %></span>
-            <span class="font-weight-bold" data-selector="success-rate"><%= success_rate(@stats) %></span>
+            <span class="text-muted small"><%= gettext "Completed" %></span>
+            <span class="font-weight-bold text-success" data-selector="completed-swaps"><%= @stats.completed_swaps %></span>
           </div>
         </div>
       </div>
@@ -83,7 +75,8 @@
                 <th><%= gettext "Chain Route" %></th>
                 <th><%= gettext "Amount" %></th>
                 <th><%= gettext "Transaction Hash" %></th>
-                <th><%= gettext "User Address" %></th>
+                <th><%= gettext "From Address" %></th>
+                <th><%= gettext "To Address" %></th>
                 <th><%= gettext "Time" %></th>
               </tr>
             </thead>
@@ -117,8 +110,13 @@
                       <% end %>
                     </td>
                     <td class="font-monospace">
-                      <%= link to: address_path(@conn, :show, swap.user_address), class: "text-primary", "data-test": "address_hash_link" do %>
-                        <%= format_address(swap.user_address) %>
+                      <%= link to: address_path(@conn, :show, get_from_address(swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+                        <%= format_address(get_from_address(swap)) %>
+                      <% end %>
+                    </td>
+                    <td class="font-monospace">
+                      <%= link to: address_path(@conn, :show, get_to_address(swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+                        <%= format_address(get_to_address(swap)) %>
                       <% end %>
                     </td>
                     <td>
@@ -128,7 +126,7 @@
                 <% end %>
               <% else %>
                 <tr>
-                  <td colspan="6" class="text-center text-muted">
+                  <td colspan="7" class="text-center text-muted">
                     <%= gettext "No cross-chain swaps found." %>
                   </td>
                 </tr>
@@ -177,10 +175,20 @@
 
                   <!-- User Address -->
                   <div class="mb-2">
-                    <small class="text-muted d-block">User:</small>
+                    <small class="text-muted d-block">From:</small>
                     <div class="font-monospace">
-                      <%= link to: address_path(@conn, :show, swap.user_address), class: "text-primary", "data-test": "address_hash_link" do %>
-                        <%= swap.user_address %>
+                      <%= link to: address_path(@conn, :show, get_from_address(swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+                        <%= format_address(get_from_address(swap)) %>
+                      <% end %>
+                    </div>
+                  </div>
+
+                  <!-- Destination Address -->
+                  <div class="mb-2">
+                    <small class="text-muted d-block">To:</small>
+                    <div class="font-monospace">
+                      <%= link to: address_path(@conn, :show, get_to_address(swap)), class: "text-primary", "data-test": "address_hash_link" do %>
+                        <%= format_address(get_to_address(swap)) %>
                       <% end %>
                     </div>
                   </div>

@@ -70,33 +70,21 @@ defmodule BlockScoutWeb.CrossChainSwapController do
             |> Map.delete("items_count")
         end
 
-      Logger.info("About to render #{length(swaps)} swaps as JSON data")
+      Logger.info("About to render #{length(swaps)} swaps as HTML tiles")
 
-      # Return JSON data instead of HTML tiles
-      rendered_items =
-        Enum.map(swaps, fn swap ->
-          %{
-            id: swap.id,
-            status: swap.status,
-            source_chain: swap.source_chain_name,
-            destination_chain: swap.destination_chain_name,
-            transaction_hash: swap.transaction_hash,
-            amount: to_string(swap.amount || "0"),
-            token_symbol: swap.token_symbol,
-            user_address: swap.user_address,
-            settlement_tx_hash: swap.settlement_tx_hash,
-            error_message: swap.error_message,
-            inserted_at: DateTime.to_iso8601(swap.inserted_at),
-            updated_at: DateTime.to_iso8601(swap.updated_at)
-          }
-        end)
-
-      Logger.info("Successfully prepared JSON data for all swaps")
-
+      # Return rendered HTML tiles for pagination system
       json(
         conn,
         %{
-          items: rendered_items,
+          items:
+            Enum.map(swaps, fn swap ->
+              View.render_to_string(
+                CrossChainSwapView,
+                "_tile.html",
+                swap: swap,
+                conn: conn
+              )
+            end),
           next_page_params: next_page_params
         }
       )
@@ -126,7 +114,7 @@ defmodule BlockScoutWeb.CrossChainSwapController do
 
       # Get stats for the header
       Logger.info("Getting swap stats")
-      stats = get_swap_stats()
+      stats = calculate_stats()
       Logger.info("Retrieved stats: #{inspect(stats)}")
 
       # Get swaps for initial render
@@ -224,11 +212,11 @@ defmodule BlockScoutWeb.CrossChainSwapController do
   defp filter_by_status(query, nil), do: query
   defp filter_by_status(query, "all"), do: query
 
-  defp filter_by_status(query, status) when status in ["pending", "settled", "failed"] do
-    CrossChainSwap.filter_by_status_query(query, status)
+  defp filter_by_status(query, status) when status in ["created", "pending", "completed"] do
+    from(swap in query, where: swap.status == ^status)
   end
 
-  defp filter_by_status(query, _), do: query
+  defp filter_by_status(query, _status), do: query
 
   defp filter_by_chain(query, nil), do: query
   defp filter_by_chain(query, ""), do: query
@@ -264,15 +252,23 @@ defmodule BlockScoutWeb.CrossChainSwapController do
 
   defp filter_by_search(query, _), do: query
 
-  defp get_swap_stats do
-    total_count = Repo.aggregate(CrossChainSwap, :count, :id)
-    status_counts = CrossChainSwap.count_by_status()
+  defp calculate_stats do
+    # Get status counts
+    status_counts =
+      from(s in CrossChainSwap,
+        group_by: s.status,
+        select: {s.status, count(s.id)}
+      )
+      |> Repo.all()
+      |> Enum.into(%{})
+
+    total_swaps = Enum.sum(Map.values(status_counts))
 
     %{
-      total_swaps: total_count,
+      total_swaps: total_swaps,
       pending_swaps: Map.get(status_counts, "pending", 0),
-      settled_swaps: Map.get(status_counts, "settled", 0),
-      failed_swaps: Map.get(status_counts, "failed", 0)
+      completed_swaps: Map.get(status_counts, "completed", 0),
+      created_swaps: Map.get(status_counts, "created", 0)
     }
   end
 
