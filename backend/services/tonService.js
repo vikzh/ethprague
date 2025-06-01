@@ -66,6 +66,9 @@ export const getExtraDataAboutOrder = async (address, orderId) => {
       // resolver_addr: resolverAddr.toString()
     };
 
+    if (resolverAddr) {
+      order.resolver_addr = resolverAddr.toString();
+    }
 
     return order
   } catch (err) {
