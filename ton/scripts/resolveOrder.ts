@@ -14,7 +14,6 @@ export async function run(provider: NetworkProvider, args: string[]) {
         to: Address.parse(orderAddress),
         value: toNano(0.05),
         body: beginCell().storeUint(Op.claim_order, 32).storeUint(0, 64).endCell(),
-        bounce: true,
     });
 
     ui.write('Order resolve transaction was sent...');

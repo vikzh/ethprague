@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 const POLYNOMIAL = -306674912;
 
 let crc32_table: Int32Array | undefined = undefined;
@@ -29,5 +31,5 @@ export function ethAddressToBigInt(address: string): bigint {
 }
 
 export function generateRandomBigInt(): bigint {
-    return BigInt(Math.floor(Math.random() * 257));
+    return BigInt('0x' + randomBytes(32).toString('hex'));
 }
