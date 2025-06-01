@@ -1,16 +1,17 @@
 import { Address, toNano } from '@ton/core';
-import { NetworkProvider } from '@ton/blueprint';
+import { NetworkProvider, sleep } from '@ton/blueprint';
 import { EscrowFactory } from '../wrappers/EscrowFactory';
 import { createHash, randomBytes } from 'node:crypto';
 import { ethAddressToBigInt, generateRandomBigInt } from '../wrappers/utils';
 import { keccak256 } from 'js-sha3';
 import { ethers } from 'ethers';
 
-const ESCROW_FACTORY = Address.parse('EQCrB1b7x5xWsm4AqbWbRZyfEuutYnOfunbGUdiogILGOcZm');
+const ESCROW_FACTORY = Address.parse('EQAwfeIet0E_vW9_DDRED_nlqsJ0rgVdniGIdcHzARQWJnxh');
 
 export async function run(provider: NetworkProvider, args: string[]) {
     const ui = provider.ui();
 
+    const orderId = Number(await ui.input('Enter order id:'));
     const fromAmount = toNano(await ui.input('Enter from TON amount:'));
     const toToken = await ui.input('Enter to token address in Eth network:');
     const toAddress = await ui.input('Enter to address in Eth network:');
@@ -25,7 +26,7 @@ export async function run(provider: NetworkProvider, args: string[]) {
     await factorySC.sendCreateOrder(provider.sender(), {
         value: toNano(0.05),
         queryId: 123,
-        orderId: 1,
+        orderId: orderId,
         fromAmount: fromAmount,
         toNetwork: 1,
         toToken: ethAddressToBigInt(toToken),
@@ -35,4 +36,32 @@ export async function run(provider: NetworkProvider, args: string[]) {
     });
 
     ui.write('Order creation transaction was sent...');
+
+    await sleep(30000);
+
+    try {
+        const result = await addOrder(provider.sender().address!!.toString(), orderId);
+        console.log('Order added:', result);
+    } catch (error) {
+        console.error('Error adding order:', error);
+    }
+}
+
+async function addOrder(userAddress: string, orderId: number) {
+    const response = await fetch('https://ethprague-backend-cyrpf.ondigitalocean.app/add-order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            userAddress,
+            orderId,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
 }
