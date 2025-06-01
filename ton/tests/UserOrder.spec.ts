@@ -3,7 +3,7 @@ import { Address, beginCell, Cell, toNano } from '@ton/core';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 import { EscrowFactory } from '../wrappers/EscrowFactory';
-import { Op } from '../wrappers/opcodes';
+import { Errors, Op } from '../wrappers/opcodes';
 import { UserEscrow } from '../wrappers/UserEscrow';
 import { ethAddressToBigInt, generateRandomBigInt } from '../wrappers/utils';
 import { ethers } from 'ethers';
@@ -142,6 +142,116 @@ describe('UserOrder', () => {
         expect(tonHash).toEqual(BigInt(hashKey));
 
         expect(await orderSC.getSecretValid(secret)).toEqual(-1);
+    });
+
+    it('withdraw order successful', async () => {
+        // Create order
+        const secret = generateRandomBigInt();
+        const hashKey = ethers.keccak256(ethers.toBeHex(secret));
+        const orderAddress = await createOrder({
+            factorySC,
+            creator,
+            fromAmount: toNano(123),
+            orderId: 456,
+            toToken: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAddress: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAmount: toNano(345),
+            hashKey: BigInt(hashKey),
+        });
+
+        // Claim order
+        let msg = beginCell().storeUint(Op.claim_order, 32).storeUint(0, 64).endCell();
+        await sendMessage(resolver, orderAddress, toNano(0.05), msg);
+
+        const resolverTonBefore = (await blockchain.getContract(resolver.address)).balance;
+        msg = beginCell().storeUint(Op.withdraw, 32).storeUint(0, 64).storeUint(secret, 256).endCell();
+        const res = await sendMessage(resolver, orderAddress, toNano(0.05), msg);
+
+        expect(res.transactions).toHaveTransaction({
+            from: resolver.address,
+            to: orderAddress,
+            op: Op.withdraw,
+            success: true,
+        });
+
+        const resolverTonAfter = (await blockchain.getContract(resolver.address)).balance;
+        expect(resolverTonAfter).toBeGreaterThan(resolverTonBefore);
+        // small portion of TON goes to network commissions
+        expect(resolverTonAfter - resolverTonBefore).toBeGreaterThan(toNano(122.9));
+    });
+
+    it('withdraw order with wrong secret', async () => {
+        // Create order
+        const secret = generateRandomBigInt();
+        const hashKey = ethers.keccak256(ethers.toBeHex(secret));
+        const orderAddress = await createOrder({
+            factorySC,
+            creator,
+            fromAmount: toNano(123),
+            orderId: 456,
+            toToken: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAddress: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAmount: toNano(345),
+            hashKey: BigInt(hashKey),
+        });
+
+        // Claim order
+        let msg = beginCell().storeUint(Op.claim_order, 32).storeUint(0, 64).endCell();
+        await sendMessage(resolver, orderAddress, toNano(0.05), msg);
+
+        const resolverTonBefore = (await blockchain.getContract(resolver.address)).balance;
+        // provide another secret (the chance of correctness is super small)
+        const wrongSecret = generateRandomBigInt();
+        msg = beginCell().storeUint(Op.withdraw, 32).storeUint(0, 64).storeUint(wrongSecret, 256).endCell();
+        const res = await sendMessage(resolver, orderAddress, toNano(0.05), msg);
+
+        expect(res.transactions).toHaveTransaction({
+            from: resolver.address,
+            to: orderAddress,
+            op: Op.withdraw,
+            success: false,
+            exitCode: Errors.wrong_secret,
+        });
+
+        const resolverTonAfter = (await blockchain.getContract(resolver.address)).balance;
+        expect(resolverTonAfter).toBeLessThanOrEqual(resolverTonBefore);
+    });
+
+    it('withdraw order by wrong resolver', async () => {
+        const wrongResolver = await blockchain.treasury('wrongResolver');
+        // Create order
+        const secret = generateRandomBigInt();
+        const hashKey = ethers.keccak256(ethers.toBeHex(secret));
+        const orderAddress = await createOrder({
+            factorySC,
+            creator,
+            fromAmount: toNano(123),
+            orderId: 456,
+            toToken: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAddress: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
+            toAmount: toNano(345),
+            hashKey: BigInt(hashKey),
+        });
+
+        // Claim order
+        let msg = beginCell().storeUint(Op.claim_order, 32).storeUint(0, 64).endCell();
+        await sendMessage(resolver, orderAddress, toNano(0.05), msg);
+
+        const resolverTonBefore = (await blockchain.getContract(resolver.address)).balance;
+        msg = beginCell().storeUint(Op.withdraw, 32).storeUint(0, 64).storeUint(secret, 256).endCell();
+        const res = await sendMessage(wrongResolver, orderAddress, toNano(0.05), msg);
+
+        // wrong resolver can not get TON even with valid secret
+        expect(res.transactions).toHaveTransaction({
+            from: wrongResolver.address,
+            to: orderAddress,
+            op: Op.withdraw,
+            success: false,
+            exitCode: Errors.forbidden,
+        });
+
+        const resolverTonAfter = (await blockchain.getContract(resolver.address)).balance;
+        expect(resolverTonAfter).toBeLessThanOrEqual(resolverTonBefore);
     });
 });
 
