@@ -3,12 +3,9 @@ import { Address, beginCell, Cell, toNano } from '@ton/core';
 import '@ton/test-utils';
 import { compile } from '@ton/blueprint';
 import { EscrowFactory } from '../wrappers/EscrowFactory';
-import { createHash, randomBytes } from 'node:crypto';
 import { Op } from '../wrappers/opcodes';
 import { UserEscrow } from '../wrappers/UserEscrow';
-import { ethAddressToBigInt } from '../wrappers/utils';
-import { keccak256 } from 'js-sha3';
-import { hash } from 'crypto';
+import { ethAddressToBigInt, generateRandomBigInt } from '../wrappers/utils';
 import { ethers } from 'ethers';
 
 describe('UserOrder', () => {
@@ -45,8 +42,8 @@ describe('UserOrder', () => {
     });
 
     it('create a new order successful', async () => {
-        const secret = randomBytes(256).toString('hex');
-        const hashKey = BigInt('0x' + keccak256(secret));
+        const secret = generateRandomBigInt();
+        const hashKey = ethers.keccak256(ethers.toBeHex(secret));
 
         await createOrder({
             factorySC,
@@ -56,7 +53,7 @@ describe('UserOrder', () => {
             toToken: ethAddressToBigInt('0x1111111111111111111111111111111111111111'),
             toAddress: ethAddressToBigInt('0x2222222222222222222222222222222222222222'),
             toAmount: toNano(0.1),
-            hashKey: hashKey,
+            hashKey: BigInt(hashKey),
         });
 
         const orderSC = blockchain.openContract(
@@ -77,13 +74,13 @@ describe('UserOrder', () => {
         expect(orderData.toToken).toEqual(ethAddressToBigInt('0x1111111111111111111111111111111111111111'));
         expect(orderData.toAddress).toEqual(ethAddressToBigInt('0x2222222222222222222222222222222222222222'));
         expect(orderData.toAmount).toEqual(toNano(0.1));
-        expect(orderData.hashKey).toEqual(hashKey);
+        expect(orderData.hashKey).toEqual(BigInt(hashKey));
         expect(orderData.resolverAddress).toEqual('');
     });
 
     it('claim order successful', async () => {
-        const secret = randomBytes(256).toString('hex');
-        const hashKey = BigInt('0x' + keccak256(secret));
+        const secret = generateRandomBigInt();
+        const hashKey = ethers.keccak256(ethers.toBeHex(secret));
         const orderAddress = await createOrder({
             factorySC,
             creator,
@@ -92,7 +89,7 @@ describe('UserOrder', () => {
             toToken: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
             toAddress: ethAddressToBigInt('0x1cCf94c59f0Aaf8090921c587f04Ccb8620aE588'),
             toAmount: toNano(0.1),
-            hashKey: hashKey,
+            hashKey: BigInt(hashKey),
         });
 
         const msg = beginCell().storeUint(Op.claim_order, 32).storeUint(0, 64).endCell();
@@ -113,6 +110,7 @@ describe('UserOrder', () => {
 
     it('check keccak method validity', async () => {
         const secret = BigInt(1);
+        // calculated keccak256 value for "1"
         const ethHash = '0xb10e2d527612073b26eecdfd717e6a320cf44b4afac2b0732d9fcbe2b7fa0cf6';
         const hashKey = ethers.keccak256(ethers.zeroPadValue(ethers.toBeHex(secret), 32));
 
