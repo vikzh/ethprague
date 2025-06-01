@@ -162,7 +162,7 @@ const exec_fee = 30000000;  ;; 0.03 TON
         throw_unless(error::forbidden, equal_slice_bits(sender_address, resolver_addr));
 
         slice secret = in_msg_body~load_bits(256);
-        throw_unless(error::wrong_secret, string_hash(secret) == hash_key);
+        throw_unless(error::wrong_secret, keccak256_hash(secret) == hash_key);
     }
 
     throw(0xffff);
@@ -183,4 +183,27 @@ const exec_fee = 30000000;  ;; 0.03 TON
     ) = load_data();
 
     return (order_id, from_address, from_amount, to_network, to_token, to_address, to_amount, hash_key, resolver_addr);
+}
+
+(int) get_secret_valid(int secret) method_id {
+    (
+        slice owner_address,
+        slice master_contract,
+        int order_id,
+        int from_amount,
+        int to_network,
+        int to_token,
+        int to_address,
+        int to_amount,
+        int hash_key,
+        slice resolver_addr
+    ) = load_data();
+
+    slice secret_slice = begin_cell().store_uint(secret, 256).end_cell().begin_parse();
+    return keccak256_hash(secret_slice) == hash_key;
+}
+
+(int) get_hash(int secret) method_id {
+    slice secret_slice = begin_cell().store_uint(secret, 256).end_cell().begin_parse();
+    return keccak256_hash(secret_slice);
 }
